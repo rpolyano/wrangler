@@ -19,7 +19,9 @@
     <dependency>
       <groupId>com.joestelmach</groupId>
       <artifactId>natty</artifactId>
-      <version>${natty.version}</version>
+      <version>0.14-SNAPSHOT</version>
+      <scope>system</scope>
+      <systemPath>${basedir}/lib/natty-0.14-SNAPSHOT.jar</systemPath>
     </dependency>
     <dependency>
       <groupId>nl.basjes.parse.httpdlog</groupId>
@@ -124,6 +126,16 @@
       <groupId>ca.uhn.hapi</groupId>
       <artifactId>hapi-structures-v26</artifactId>
       <version>${hl7.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr-runtime</artifactId>
+      <version>3.5.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mnode.ical4j</groupId>
+      <artifactId>ical4j</artifactId>
+      <version>1.0.2</version>
     </dependency>
   </dependencies>
 

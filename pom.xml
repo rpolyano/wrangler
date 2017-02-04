@@ -29,6 +29,7 @@
     <module>wrangler-transform</module>
     <module>wrangler-service</module>
     <module>wrangler-core</module>
+    <module>wrangler-performance</module>
   </modules>
 
   <licenses>
