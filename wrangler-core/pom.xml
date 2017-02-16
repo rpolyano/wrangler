@@ -135,6 +135,42 @@
       <artifactId>simmetrics-core</artifactId>
       <version>4.1.1</version>
     </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>${antlr4.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-maven-plugin</artifactId>
+      <version>${antlr4.version}</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>${antlr4-maven-plugin.versio}</version>
+        <configuration>
+          <arguments>
+            <argument>-visitor</argument>
+            <!-- <argument>-Dlanguage=JavaScript</argument> -->
+          </arguments>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
 
 </project>
