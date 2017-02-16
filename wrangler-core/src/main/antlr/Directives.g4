@@ -16,6 +16,17 @@
 
 grammar Directives;
 
+options {
+  language = Java;
+}
+
+@lexer::header {
+  import java.util.ArrayList;
+  import java.util.List;
+
+  import co.cask.wrangler.api.DirectiveParseException;
+}
+
 directives
   : directive (SEMI_COLON directive )* EOF
   ;
@@ -24,34 +35,64 @@ directive
   : dropColumn
   | renameColumn
   | flattenColumn
+  | parseAsHL7
+  | parseAsXML
+  | parseAsJSON
   | parseAsCSV
   ;
 
-// flatten(column, ...)
+// flatten(column, ...) or flatten column [, columns]*
 flattenColumn
   : 'flatten' LPAREN COLUMN_NAME (',' COLUMN_NAME)* RPAREN
+  | 'flatten' COLUMN_NAME (',' COLUMN_NAME)*
   ;
 
-// parse-as-csv(column, ",", true)
+// parse-as-csv(column, ",", true) or parse-as csv column "," true
 parseAsCSV
   : 'parse-as-csv' LPAREN COLUMN_NAME ',' QUOTED_STRING ',' BOOLEAN RPAREN
+  | PARSE_AS 'csv' COLUMN_NAME QUOTED_STRING  BOOLEAN
+  ;
+
+// parse-as-xml(column [, depth]) or parse-as xml column [depth]
+parseAsXML
+  : 'parse-as-xml' LPAREN COLUMN_NAME ( ',' INTEGER ) RPAREN
+  | PARSE_AS 'xml' COLUMN_NAME ( ',' INTEGER )
+  ;
+
+// parse-as-json(column [, depth]) or parse-as json column [depth]
+parseAsJSON
+  : 'parse-as-xml' LPAREN COLUMN_NAME ( ',' INTEGER ) RPAREN
+  | PARSE_AS 'json' COLUMN_NAME ( ',' INTEGER )
   ;
 
 // parse-as-hl7(column, depth)
-
+parseAsHL7
+  : 'parse-as-hl7' LPAREN COLUMN_NAME ( ',' INTEGER ) RPAREN
+  | PARSE_AS 'hl7' COLUMN_NAME ( ',' INTEGER )
+  ;
 
 // drop(column1, column2, ...)
 dropColumn
   : 'drop' LPAREN COLUMN_NAME (',' COLUMN_NAME)* RPAREN
+  | 'drop' COLUMN_NAME (',' COLUMN_NAME)*
   ;
 
 // rename(column, column, ...)
 renameColumn
   : 'rename' LPAREN COLUMN_NAME (',' COLUMN_NAME)* RPAREN
+  | 'rename' COLUMN_NAME (',' COLUMN_NAME)*
   ;
 
+
+fragment KVPAIR
+  : IDENTIFIER '=' ( IDENTIFIER | QUOTED_STRING | NUMBER | BOOLEAN )
+  ;
+
+PARSE_AS : 'parse-as';
 LPAREN : '(';
 RPAREN : ')';
+LBRACE : '{';
+RBRACE : '}';
 COMMA : ',';
 DOT : '.';
 SEMI_COLON : ';';
@@ -76,6 +117,10 @@ QUOTED_STRING
 
 SPACE
   : [ \t\r\n\u000C] -> skip
+  ;
+
+INTEGER
+  : INT
   ;
 
 NUMBER

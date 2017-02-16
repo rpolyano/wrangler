@@ -16,19 +16,23 @@
 
 package co.cask.wrangler.internal;
 
+import co.cask.wrangler.api.Step;
 import co.cask.wrangler.internal.ast.DirectiveVisitor;
-import co.cask.wrangler.internal.ast.ParsingErrorListener;
+import co.cask.wrangler.internal.ast.DirectiveParsingError;
 import co.cask.wrangler.internal.parser.DirectivesLexer;
 import co.cask.wrangler.internal.parser.DirectivesParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.TokenSource;
+import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tests the parsing of directives using wrangler.
@@ -37,18 +41,24 @@ public class ParserTest {
 
   @Test
   public void testBasicParsing() throws Exception {
-    String directive = "drop(d1,d2);";
+    List<RecognitionException> errors = new ArrayList<>();
+    String directive = "parse-as xml x3";
     CharStream inputCharStream = new ANTLRInputStream(new StringReader(directive));
-    TokenSource tokenSource = new DirectivesLexer(inputCharStream);
-    TokenStream inputTokenStream = new CommonTokenStream(tokenSource);
+    DirectivesLexer lexer = new DirectivesLexer(inputCharStream);
+    TokenStream inputTokenStream = new CommonTokenStream(lexer);
     DirectivesParser parser = new DirectivesParser(inputTokenStream);
+
+    lexer.removeErrorListeners();
+    lexer.addErrorListener(DirectiveParsingError.INSTANCE);
     parser.removeErrorListeners();
-    parser.addErrorListener(new ParsingErrorListener());
+    parser.addErrorListener(DirectiveParsingError.INSTANCE);
+
     parser.setBuildParseTree(true);
     ParseTree tree = parser.directives();
-    //tree.getText();
 
     DirectiveVisitor visitor = new DirectiveVisitor();
-    visitor.visit(tree);
+    List<Step> steps = visitor.visit(tree);
+
+    Assert.assertTrue(steps.size() >= 0);
   }
 }

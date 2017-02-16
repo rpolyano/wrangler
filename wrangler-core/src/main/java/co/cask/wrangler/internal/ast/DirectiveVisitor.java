@@ -17,19 +17,23 @@
 package co.cask.wrangler.internal.ast;
 
 import co.cask.wrangler.api.Step;
+import co.cask.wrangler.internal.parser.DirectivesBaseVisitor;
 import co.cask.wrangler.internal.parser.DirectivesParser;
-import co.cask.wrangler.internal.parser.DirectivesVisitor;
-import org.antlr.v4.runtime.tree.ErrorNode;
+import co.cask.wrangler.steps.XmlToJson;
+import co.cask.wrangler.steps.column.Drop;
+import co.cask.wrangler.steps.parser.HL7Parser;
+import co.cask.wrangler.steps.parser.JsonParser;
+import co.cask.wrangler.steps.row.Flatten;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * AST Visitor for parsing the directives into steps.
  */
-public class DirectiveVisitor implements DirectivesVisitor<Step> {
+public class DirectiveVisitor extends DirectivesBaseVisitor<List<Step>> {
 
   /**
    * Visit a parse tree produced by {@link DirectivesParser#directives}.
@@ -38,11 +42,15 @@ public class DirectiveVisitor implements DirectivesVisitor<Step> {
    * @return the visitor result
    */
   @Override
-  public Step visitDirectives(DirectivesParser.DirectivesContext ctx) {
+  public List<Step> visitDirectives(DirectivesParser.DirectivesContext ctx) {
+    List<Step> steps = new ArrayList<>();
     for (ParseTree tree : ctx.children) {
-      Step s = tree.accept(this);
+      List<Step> childrenSteps = tree.accept(this);
+      if (childrenSteps != null) {
+        steps.addAll(childrenSteps);
+      }
     }
-    return null;
+    return steps;
   }
 
   /**
@@ -52,11 +60,8 @@ public class DirectiveVisitor implements DirectivesVisitor<Step> {
    * @return the visitor result
    */
   @Override
-  public Step visitDirective(DirectivesParser.DirectiveContext ctx) {
-    for (ParseTree tree : ctx.children) {
-      Step s = tree.accept(this);
-    }
-    return null;
+  public List<Step> visitDirective(DirectivesParser.DirectiveContext ctx) {
+    return ctx.getChild(0).accept(this);
   }
 
   /**
@@ -66,9 +71,16 @@ public class DirectiveVisitor implements DirectivesVisitor<Step> {
    * @return the visitor result
    */
   @Override
-  public Step visitFlattenColumn(DirectivesParser.FlattenColumnContext ctx) {
-    List<TerminalNode> columns = ctx.COLUMN_NAME();
-    return null;
+  public List<Step> visitFlattenColumn(DirectivesParser.FlattenColumnContext ctx) {
+    int lineno = ctx.getStart().getLine();
+    List<String> columns = new ArrayList<>();
+    for (TerminalNode node : ctx.COLUMN_NAME()) {
+      columns.add(node.getText());
+    }
+    String[] cols = new String[columns.size()];
+    List<Step> steps = new ArrayList<>();
+    steps.add(new Flatten(lineno, "", columns.toArray(cols)));
+    return steps;
   }
 
   /**
@@ -78,12 +90,71 @@ public class DirectiveVisitor implements DirectivesVisitor<Step> {
    * @return the visitor result
    */
   @Override
-  public Step visitParseAsCSV(DirectivesParser.ParseAsCSVContext ctx) {
+  public List<Step> visitParseAsCSV(DirectivesParser.ParseAsCSVContext ctx) {
     String column = ctx.COLUMN_NAME().getText();
     String delimiter = ctx.QUOTED_STRING().getText();
     String emptyLines = ctx.BOOLEAN().getText();
     return null;
+  }
 
+  /**
+   * {@inheritDoc}
+   * <p>
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   *
+   * @param ctx
+   */
+  @Override
+  public List<Step> visitParseAsXML(DirectivesParser.ParseAsXMLContext ctx) {
+    String number = ctx.INTEGER() != null ? ctx.INTEGER().getText() : null;
+    int depth = Integer.MAX_VALUE;
+    if (number != null && number.isEmpty()) {
+      depth = Integer.parseInt(number);
+    }
+    List<Step> steps = new ArrayList<>();
+    steps.add(new XmlToJson(ctx.getStart().getLine(), "", ctx.COLUMN_NAME().getText(), depth));
+    return steps;
+  }
+
+  /**
+   * {@inheritDoc}
+   * <p>
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   *
+   * @param ctx
+   */
+  @Override
+  public List<Step> visitParseAsJSON(DirectivesParser.ParseAsJSONContext ctx) {
+    String number = ctx.INTEGER() != null ? ctx.INTEGER().getText() : null;
+    int depth = Integer.MAX_VALUE;
+    if (number != null && number.isEmpty()) {
+      depth = Integer.parseInt(number);
+    }
+    List<Step> steps = new ArrayList<>();
+    steps.add(new JsonParser(ctx.getStart().getLine(), "", ctx.COLUMN_NAME().getText(), depth));
+    return steps;
+  }
+
+  /**
+   * {@inheritDoc}
+   * <p>
+   * <p>The default implementation returns the result of calling
+   * {@link #visitChildren} on {@code ctx}.</p>
+   *
+   * @param ctx
+   */
+  @Override
+  public List<Step> visitParseAsHL7(DirectivesParser.ParseAsHL7Context ctx) {
+    String number = ctx.INTEGER() != null ? ctx.INTEGER().getText() : null;
+    int depth = Integer.MAX_VALUE;
+    if (number != null && number.isEmpty()) {
+      depth = Integer.parseInt(number);
+    }
+    List<Step> steps = new ArrayList<>();
+    steps.add(new HL7Parser(ctx.getStart().getLine(), "", ctx.COLUMN_NAME().getText(), depth));
+    return steps;
   }
 
   /**
@@ -93,9 +164,15 @@ public class DirectiveVisitor implements DirectivesVisitor<Step> {
    * @return the visitor result
    */
   @Override
-  public Step visitDropColumn(DirectivesParser.DropColumnContext ctx) {
-    List<TerminalNode> nodes = ctx.COLUMN_NAME();
-    return null;
+  public List<Step> visitDropColumn(DirectivesParser.DropColumnContext ctx) {
+    int lineno = ctx.getStart().getLine();
+    List<String> columns = new ArrayList<>();
+    for (TerminalNode node : ctx.COLUMN_NAME()) {
+      columns.add(node.getText());
+    }
+    List<Step> steps = new ArrayList<Step>();
+    steps.add(new Drop(lineno, "", columns));
+    return steps;
   }
 
   /**
@@ -105,28 +182,14 @@ public class DirectiveVisitor implements DirectivesVisitor<Step> {
    * @return the visitor result
    */
   @Override
-  public Step visitRenameColumn(DirectivesParser.RenameColumnContext ctx) {
-    List<TerminalNode> nodes = ctx.COLUMN_NAME();
-    return null;
-  }
-
-  @Override
-  public Step visit(ParseTree parseTree) {
-    return parseTree.accept(this);
-  }
-
-  @Override
-  public Step visitChildren(RuleNode ruleNode) {
-    return null;
-  }
-
-  @Override
-  public Step visitTerminal(TerminalNode terminalNode) {
-    return null;
-  }
-
-  @Override
-  public Step visitErrorNode(ErrorNode errorNode) {
-    return null;
+  public List<Step> visitRenameColumn(DirectivesParser.RenameColumnContext ctx) {
+    int lineno = ctx.getStart().getLine();
+    List<String> columns = new ArrayList<>();
+    for (TerminalNode node : ctx.COLUMN_NAME()) {
+      columns.add(node.getText());
+    }
+    List<Step> steps = new ArrayList<Step>();
+    //steps.add(new Rename(lineno, "", columns));
+    return steps;
   }
 }
