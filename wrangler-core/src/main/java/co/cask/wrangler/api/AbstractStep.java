@@ -20,17 +20,21 @@ package co.cask.wrangler.api;
  * An abstract class for {@link Step} with added debugging capabilities.
  */
 public abstract class AbstractStep implements Step<Record, Record> {
-  private int lineno;
+  private int line;
   private String detail;
 
-  public AbstractStep(int lineno, String detail) {
-    this.lineno = lineno;
+  public AbstractStep(int line, String detail) {
+    this.line = line;
     this.detail = detail;
+  }
+
+  public void setLine(int line) {
+    this.line = line;
   }
 
   @Override
   public String toString() {
-    return String.format("[Step %d] - <%s>", lineno, detail);
+    return String.format("[Step %d] - <%s>", line, detail);
   }
 }
 

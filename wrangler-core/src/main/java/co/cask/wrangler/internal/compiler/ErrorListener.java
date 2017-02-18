@@ -14,17 +14,21 @@
  * the License.
  */
 
-package co.cask.wrangler.internal.ast;
+package co.cask.wrangler.internal.compiler;
 
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Directive parsing error listener.
  */
-public class DirectiveParsingError extends BaseErrorListener {
-  public static DirectiveParsingError INSTANCE = new DirectiveParsingError();
+public class ErrorListener extends BaseErrorListener {
+  private boolean hasError = false;
+  private List<String> errorList = new ArrayList<>();
 
   @Override
   public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
@@ -37,6 +41,15 @@ public class DirectiveParsingError extends BaseErrorListener {
       sourceName = String.format("%s:%d:%d: ", sourceName, line, charPositionInLine);
     }
 
-    System.err.println(sourceName + "line " + line + ":" + charPositionInLine + " " + msg);
+    hasError = true;
+    errorList.add(String.format("%s line %d:%d %s", sourceName, line, charPositionInLine, msg));
+  }
+
+  public boolean hasErrors() {
+    return hasError;
+  }
+
+  public List<String> getErrorList() {
+    return errorList;
   }
 }

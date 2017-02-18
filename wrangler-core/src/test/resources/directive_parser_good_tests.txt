@@ -1,0 +1,6 @@
+-- This is a single line comment
+
+
+parse-as-xml c3 1
+parse-as-xml c3
+parse-as-json c3 1

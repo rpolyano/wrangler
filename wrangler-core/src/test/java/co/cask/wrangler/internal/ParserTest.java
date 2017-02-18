@@ -16,22 +16,12 @@
 
 package co.cask.wrangler.internal;
 
-import co.cask.wrangler.api.Step;
-import co.cask.wrangler.internal.ast.DirectiveVisitor;
-import co.cask.wrangler.internal.ast.DirectiveParsingError;
-import co.cask.wrangler.internal.parser.DirectivesLexer;
-import co.cask.wrangler.internal.parser.DirectivesParser;
-import org.antlr.v4.runtime.ANTLRInputStream;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.TokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
+import co.cask.wrangler.internal.compiler.DirectiveCompiler;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.StringReader;
-import java.util.ArrayList;
+import java.io.File;
+import java.net.URL;
 import java.util.List;
 
 /**
@@ -40,25 +30,18 @@ import java.util.List;
 public class ParserTest {
 
   @Test
-  public void testBasicParsing() throws Exception {
-    List<RecognitionException> errors = new ArrayList<>();
-    String directive = "parse-as xml x3";
-    CharStream inputCharStream = new ANTLRInputStream(new StringReader(directive));
-    DirectivesLexer lexer = new DirectivesLexer(inputCharStream);
-    TokenStream inputTokenStream = new CommonTokenStream(lexer);
-    DirectivesParser parser = new DirectivesParser(inputTokenStream);
-
-    lexer.removeErrorListeners();
-    lexer.addErrorListener(DirectiveParsingError.INSTANCE);
-    parser.removeErrorListeners();
-    parser.addErrorListener(DirectiveParsingError.INSTANCE);
-
-    parser.setBuildParseTree(true);
-    ParseTree tree = parser.directives();
-
-    DirectiveVisitor visitor = new DirectiveVisitor();
-    List<Step> steps = visitor.visit(tree);
-
-    Assert.assertTrue(steps.size() >= 0);
+  public void testGoodCasesOfParsing() throws Exception {
+    URL url = ParserTest.class.getClassLoader().getResource("directive_parser_good_tests.txt");
+    File file = new File(url.getFile());
+    DirectiveCompiler compiler = new DirectiveCompiler();
+    boolean status = compiler.compile(file);
+    if (! status) {
+      List<String> errors = compiler.getErrors();
+      for (String error : errors) {
+        System.out.println(error);
+      }
+    }
+    Assert.assertTrue(status);
+    Assert.assertEquals(16, compiler.getCompiledObjects().size());
   }
 }

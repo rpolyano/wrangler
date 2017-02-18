@@ -28,74 +28,64 @@ options {
 }
 
 directives
-  : directive (SEMI_COLON directive )* EOF
+  : ('\n')* directive ((SEMI_COLON | ('\n')*) directive )* EOF
   ;
 
 directive
-  : dropColumn
-  | renameColumn
-  | flattenColumn
-  | parseAsHL7
-  | parseAsXML
-  | parseAsJSON
-  | parseAsCSV
+  : SINGLE_LINE_COMMENT
+  | parseSource1
+  | parseSource2
+  | columnOperations
   ;
 
-// flatten(column, ...) or flatten column [, columns]*
-flattenColumn
-  : 'flatten' LPAREN COLUMN_NAME (',' COLUMN_NAME)* RPAREN
-  | 'flatten' COLUMN_NAME (',' COLUMN_NAME)*
+parseSource1
+  : ('parse-as-json'|'parse-as-hl7'|'parse-as-xml') ( COLUMN_NAME ( INTEGER )* )
   ;
 
-// parse-as-csv(column, ",", true) or parse-as csv column "," true
-parseAsCSV
-  : 'parse-as-csv' LPAREN COLUMN_NAME ',' QUOTED_STRING ',' BOOLEAN RPAREN
-  | PARSE_AS 'csv' COLUMN_NAME QUOTED_STRING  BOOLEAN
+parseSource2
+  : ('parse-as-log' | 'parse-as-csv') (COLUMN_NAME STRING)
   ;
 
-// parse-as-xml(column [, depth]) or parse-as xml column [depth]
-parseAsXML
-  : 'parse-as-xml' LPAREN COLUMN_NAME ( ',' INTEGER ) RPAREN
-  | PARSE_AS 'xml' COLUMN_NAME ( ',' INTEGER )
+columnOperations
+  : 'drop' (COLUMN_NAME (COLUMN_NAME)*)
+  | 'rename' (COLUMN_NAME COLUMN_NAME)
   ;
 
-// parse-as-json(column [, depth]) or parse-as json column [depth]
-parseAsJSON
-  : 'parse-as-xml' LPAREN COLUMN_NAME ( ',' INTEGER ) RPAREN
-  | PARSE_AS 'json' COLUMN_NAME ( ',' INTEGER )
+KVPAIRS
+  : KVPAIR (COMMA KVPAIR)*
   ;
 
-// parse-as-hl7(column, depth)
-parseAsHL7
-  : 'parse-as-hl7' LPAREN COLUMN_NAME ( ',' INTEGER ) RPAREN
-  | PARSE_AS 'hl7' COLUMN_NAME ( ',' INTEGER )
+KVPAIR
+  : IDENTIFIER '=' ( IDENTIFIER | STRING | NUMBER | BOOLEAN )
   ;
 
-// drop(column1, column2, ...)
-dropColumn
-  : 'drop' LPAREN COLUMN_NAME (',' COLUMN_NAME)* RPAREN
-  | 'drop' COLUMN_NAME (',' COLUMN_NAME)*
+LPAREN
+  : '('
   ;
 
-// rename(column, column, ...)
-renameColumn
-  : 'rename' LPAREN COLUMN_NAME (',' COLUMN_NAME)* RPAREN
-  | 'rename' COLUMN_NAME (',' COLUMN_NAME)*
+RPAREN
+  : ')'
   ;
 
-
-fragment KVPAIR
-  : IDENTIFIER '=' ( IDENTIFIER | QUOTED_STRING | NUMBER | BOOLEAN )
+LBRACE
+  : '{'
   ;
 
-PARSE_AS : 'parse-as';
-LPAREN : '(';
-RPAREN : ')';
-LBRACE : '{';
-RBRACE : '}';
-COMMA : ',';
-DOT : '.';
-SEMI_COLON : ';';
+RBRACE
+  : '}'
+  ;
+
+COMMA
+  : ','
+  ;
+
+DOT
+  : '.'
+  ;
+
+SEMI_COLON
+  : ';'
+  ;
 
 BOOLEAN
   : 'true'
@@ -103,11 +93,38 @@ BOOLEAN
   ;
 
 COLUMN_NAME
-  : [a-zA-Z_] [a-zA-Z_0-9]*
+  : [a-zA-Z_] [a-zA-Z_:0-9]*
   ;
 
 IDENTIFIER
   : [a-zA-Z_] [a-zA-Z_0-9]*
+  ;
+
+STRING
+  :  '"' ( ESC_SEQ | ~('\\'|'"') )* '"'
+  ;
+
+fragment ESC_SEQ
+  :   '\\' ('b'|'t'|'n'|'f'|'r'|'\"'|'\''|'\\')
+  |   UNICODE_ESC
+  |   OCTAL_ESC
+  ;
+
+
+fragment OCTAL_ESC
+  :   '\\' ('0'..'3') ('0'..'7') ('0'..'7')
+  |   '\\' ('0'..'7') ('0'..'7')
+  |   '\\' ('0'..'7')
+  ;
+
+
+fragment UNICODE_ESC
+  :   '\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+  ;
+
+
+fragment HEX_DIGIT
+  : ('0'..'9'|'a'..'f'|'A'..'F')
   ;
 
 QUOTED_STRING
@@ -115,8 +132,8 @@ QUOTED_STRING
   | ['] (~['\r\n] | '\\\\' | '\\\'')* [']
   ;
 
-SPACE
-  : [ \t\r\n\u000C] -> skip
+WS
+  : (' '|'\t') -> skip
   ;
 
 INTEGER
@@ -138,8 +155,4 @@ fragment DIGIT
 
 SINGLE_LINE_COMMENT
   : ('--') (.)*? [\n] -> channel(HIDDEN)
-  ;
-
-MULTI_LINE_COMMENT
-  : ('/*') (.)*? ('*/' | EOF) -> channel(HIDDEN)
   ;
