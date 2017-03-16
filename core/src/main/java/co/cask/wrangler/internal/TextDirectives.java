@@ -18,7 +18,10 @@ package co.cask.wrangler.internal;
 
 import co.cask.wrangler.api.DirectiveParseException;
 import co.cask.wrangler.api.Directives;
+import co.cask.wrangler.api.PatternMatchableStep;
 import co.cask.wrangler.api.Step;
+import co.cask.wrangler.internal.parsing.PatternMatch;
+import co.cask.wrangler.internal.parsing.PatternMatcher;
 import co.cask.wrangler.steps.ExtractRegexGroups;
 import co.cask.wrangler.steps.JsPath;
 import co.cask.wrangler.steps.XmlToJson;
@@ -78,6 +81,7 @@ import co.cask.wrangler.steps.transformation.XPathAttr;
 import co.cask.wrangler.steps.transformation.XPathElement;
 import co.cask.wrangler.steps.writer.WriteAsCSV;
 import co.cask.wrangler.steps.writer.WriteAsJsonMap;
+import com.google.common.collect.ImmutableList;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -800,44 +804,30 @@ public class TextDirectives implements Directives {
         }
         break;
 
-        // encode <base32|base64|hex> <column>
-        case "encode" : {
-          String type = getNextToken(tokenizer, command, "type", lineno);
-          String column = getNextToken(tokenizer, command, "column", lineno);
-          type = type.toUpperCase();
-          if (!type.equals("BASE64") && !type.equals("BASE32") && !type.equals("HEX")) {
-            throw new DirectiveParseException(
-              String.format("Type of encoding specified '%s' is not supported. Supports base64, base32 & hex.",
-                            type)
-            );
-          }
-          steps.add(new Encode(lineno, directive, Encode.Type.valueOf(type), column));
-        }
-        break;
-
-        // decode <base32|base64|hex> <column>
-        case "decode" : {
-          String type = getNextToken(tokenizer, command, "type", lineno);
-          String column = getNextToken(tokenizer, command, "column", lineno);
-          type = type.toUpperCase();
-          if (!type.equals("BASE64") && !type.equals("BASE32") && !type.equals("HEX")) {
-            throw new DirectiveParseException(
-              String.format("Type of decoding specified '%s' is not supported. Supports base64, base32 & hex.",
-                            type)
-            );
-          }
-          steps.add(new Decode(lineno, directive, Decode.Type.valueOf(type), column));
-        }
-        break;
-
         default:
-          throw new DirectiveParseException(
-            String.format("Unknown directive '%s' found in the directive at line %d", command, lineno)
-          );
+          PatternMatch match = PatternMatcher.findMatch(getMatchableCommands(), directive);
+          if (match == null) {
+            // TODO: Note that with this approach, we lose debug information, about what field is missing (for instance,
+            // if user is omitting a field)
+            throw new DirectiveParseException(
+              String.format("Directive '%s' at line %d did not match any known directives.", directive, lineno)
+            );
+          }
+          PatternMatchableStep matchedCommand = match.getCommand();
+          matchedCommand.configure(lineno, directive);
+          matchedCommand.initialize(match.getArguments());
+          steps.add(matchedCommand);
       }
       lineno++;
     }
     return steps;
+  }
+
+  private List<? extends PatternMatchableStep> getMatchableCommands() {
+    // Currently, only the following Steps supports pattern matching via this approach.
+    // Once all directives are migrated, UsageRegistry can be used instead of the static list here.
+    return ImmutableList.of(new Decode(),
+                            new Encode());
   }
 
   // If there are more tokens, then it proceeds with parsing, else throws exception.

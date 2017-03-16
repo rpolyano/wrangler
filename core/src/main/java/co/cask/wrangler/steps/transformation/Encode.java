@@ -1,6 +1,9 @@
 package co.cask.wrangler.steps.transformation;
 
+import co.cask.common.cli.Arguments;
 import co.cask.wrangler.api.AbstractStep;
+import co.cask.wrangler.api.DirectiveParseException;
+import co.cask.wrangler.api.PatternMatchableStep;
 import co.cask.wrangler.api.PipelineContext;
 import co.cask.wrangler.api.Record;
 import co.cask.wrangler.api.StepException;
@@ -21,12 +24,13 @@ import java.util.Locale;
   usage = "encode <base64|base32|hex> column",
   description = "Encodes a column"
 )
-public class Encode extends AbstractStep {
+public class Encode extends PatternMatchableStep {
   private final Base64 base64Encode = new Base64();
   private final Base32 base32Encode = new Base32();
   private final Hex hexEncode = new Hex();
-  private final Type type;
-  private final String column;
+
+  private Type type;
+  private String column;
 
   /**
    * Defines encoding types supported.
@@ -45,12 +49,6 @@ public class Encode extends AbstractStep {
     String getType() {
       return type;
     }
-  }
-
-  public Encode(int lineno, String directive, Type type, String column) {
-    super(lineno, directive);
-    this.type = type;
-    this.column = column;
   }
 
   /**
@@ -102,5 +100,24 @@ public class Encode extends AbstractStep {
       record.addOrSet(String.format("%s_encode_%s", column, type.toString().toLowerCase(Locale.ENGLISH)), obj);
     }
     return records;
+  }
+
+  @Override
+  public void initialize(Arguments arguments) throws DirectiveParseException {
+    String type = arguments.get("type").toUpperCase();
+    if (!type.equals("BASE64") && !type.equals("BASE32") && !type.equals("HEX")) {
+      throw new DirectiveParseException(
+        String.format("Type of encoding specified '%s' is not supported. Supports base64, base32 & hex.",
+                      type)
+      );
+    }
+    this.type = Encode.Type.valueOf(type);
+    this.column = arguments.get("column");
+  }
+
+  @Override
+  public String getPattern() {
+    // encode <base32|base64|hex> <column>
+    return "encode <type> <column>";
   }
 }
