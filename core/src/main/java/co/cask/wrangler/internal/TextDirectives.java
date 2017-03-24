@@ -447,6 +447,13 @@ public class TextDirectives implements Directives {
         }
         break;
 
+        // parse-as-xml-dom <column>
+        case "parse-as-xml-dom" : {
+          String column = getNextToken(tokenizer, command, "column", lineno);
+          steps.add(new XmlParser(lineno, directive, column));
+        }
+        break;
+
         // xpath <column> <destination> <xpath>
         case "xpath" : {
           String column = getNextToken(tokenizer, command, "column", lineno);

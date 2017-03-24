@@ -21,30 +21,37 @@ import co.cask.wrangler.api.PipelineContext;
 import co.cask.wrangler.api.Record;
 import co.cask.wrangler.api.StepException;
 import co.cask.wrangler.api.Usage;
-import com.ximpleware.ParseException;
-import com.ximpleware.VTDGen;
-import com.ximpleware.VTDNav;
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
-import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.List;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 /**
  * A XML Parser.
  */
 @Usage(
-  directive = "parse-as-xml",
-  usage = "parse-as-xml <column>",
-  description = "Parses a column as XML."
+  directive = "parse-as-xml-dom",
+  usage = "parse-as-xml-dom <column>",
+  description = "Parses a column as XML Dom."
 )
-public class XmlParser extends AbstractStep {
+public class XmlDomParser extends AbstractStep {
   // Column within the input row that needs to be parsed as CSV
   private String col;
-  private final VTDGen vg = new VTDGen();
+  private DocumentBuilderFactory factory;
 
 
-  public XmlParser(int lineno, String detail, String col) {
+  public XmlDomParser(int lineno, String detail, String col) {
     super(lineno, detail);
     this.col = col;
+    factory = DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
   }
 
   /**
@@ -71,14 +78,24 @@ public class XmlParser extends AbstractStep {
 
       if (object instanceof String) {
         String xml = (String) object;
-        vg.setDoc(xml.getBytes(StandardCharsets.UTF_8));
+        DocumentBuilder builder = null;
         try {
-          vg.parse(true);
-        } catch (ParseException e) {
-          e.printStackTrace();
+          builder = factory.newDocumentBuilder();
+          Document doc = builder.parse(new InputSource(new ByteArrayInputStream(xml.getBytes("utf-8"))));
+          record.setValue(idx, doc);
+        } catch (ParserConfigurationException | SAXException e) {
+          throw new StepException(
+            String.format("Unable to parse XML Dom. %s", e.getMessage())
+          );
+        } catch (UnsupportedEncodingException e) {
+          throw new StepException(
+            String.format("Failed parsing XML as encoding is not valid. %s", e.getMessage())
+          );
+        } catch (IOException e) {
+          throw new StepException(
+            String.format("Failed to read XML. %s", e.getMessage())
+          );
         }
-        VTDNav vn = vg.getNav();
-        record.setValue(idx, vn);
       }
     }
     return records;

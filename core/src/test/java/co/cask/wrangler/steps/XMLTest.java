@@ -18,12 +18,37 @@ package co.cask.wrangler.steps;
 
 import co.cask.wrangler.api.Record;
 import co.cask.wrangler.steps.transformation.XPathElement;
+import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.xml.sax.InputSource;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import javax.xml.XMLConstants;
+import javax.xml.namespace.NamespaceContext;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 
 /**
  * Tests implementation of {@link XmlToJson}
@@ -296,6 +321,100 @@ public class XMLTest {
       Assert.assertEquals(output[i], XPathElement.extractAttributeFromXPath(input[i]));
     }
   }
+
+
+  public class UniversalNamespaceResolver implements NamespaceContext {
+    // the delegate
+    private Document sourceDocument;
+
+    /**
+     * This constructor stores the source document to search the namespaces in
+     * it.
+     *
+     * @param document
+     *            source document
+     */
+    public UniversalNamespaceResolver(Document document) {
+      sourceDocument = document;
+    }
+
+    /**
+     * The lookup for the namespace uris is delegated to the stored document.
+     *
+     * @param prefix
+     *            to search for
+     * @return uri
+     */
+    public String getNamespaceURI(String prefix) {
+      if (prefix.equals(XMLConstants.DEFAULT_NS_PREFIX)) {
+        return sourceDocument.lookupNamespaceURI(null);
+      } else {
+        return sourceDocument.lookupNamespaceURI(prefix);
+      }
+    }
+
+    /**
+     * This method is not needed in this context, but can be implemented in a
+     * similar way.
+     */
+    public String getPrefix(String namespaceURI) {
+      return sourceDocument.lookupPrefix(namespaceURI);
+    }
+
+    public Iterator getPrefixes(String namespaceURI) {
+      // not implemented yet
+      return null;
+    }
+
+  }
+
+  @Ignore
+  @Test
+  public void testRegularXMLParsing() throws Exception {
+    String xml = FileUtils.readFileToString(new File("/tmp/test.xml"));
+
+    // parse-as-xml <column>
+    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
+    DocumentBuilder builder = factory.newDocumentBuilder();
+    Document doc = builder.parse(new InputSource(new ByteArrayInputStream(xml.getBytes("utf-8"))));
+
+    System.out.println(getTextXML(doc));
+
+    // dom-xml-node <column> <xpath>
+    // dom-xml-nodearray
+    // dom-xml-element
+
+    Node object = null;
+    try {
+      XPath xpath = XPathFactory.newInstance().newXPath();
+      xpath.setNamespaceContext(new UniversalNamespaceResolver(doc));
+      XPathExpression expr = xpath.compile("/asds4_0:SabreASDS/stl15:GetReservationRS/stl15:Reservation/stl15:PassengerReservation/stl15:Segments/");
+      object =  (Node) expr.evaluate(doc, XPathConstants.NODE);
+      String x = expr.evaluate(doc);
+      System.out.println(x);
+    } catch (XPathExpressionException e) {
+      System.out.println(e.getMessage());
+    }
+
+    System.out.println(getTextXML(object));
+    Assert.assertTrue(true);
+  }
+
+  private String getTextXML(Node node) throws TransformerConfigurationException, TransformerException {
+    StringWriter sw = new StringWriter();
+    TransformerFactory tf = TransformerFactory.newInstance();
+    Transformer transformer = tf.newTransformer();
+    transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+    transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+    transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+    transformer.transform(new DOMSource(node), new StreamResult(sw));
+    return sw.toString();
+  }
+
+
 
   private String extractAttribute(String path) {
     int index = path.lastIndexOf('/');

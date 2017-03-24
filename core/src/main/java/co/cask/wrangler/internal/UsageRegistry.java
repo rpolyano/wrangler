@@ -41,6 +41,7 @@ import co.cask.wrangler.steps.parser.JsonParser;
 import co.cask.wrangler.steps.parser.ParseDate;
 import co.cask.wrangler.steps.parser.ParseLog;
 import co.cask.wrangler.steps.parser.ParseSimpleDate;
+import co.cask.wrangler.steps.parser.XmlDomParser;
 import co.cask.wrangler.steps.parser.XmlParser;
 import co.cask.wrangler.steps.row.Flatten;
 import co.cask.wrangler.steps.row.RecordConditionFilter;
@@ -185,7 +186,8 @@ public final class UsageRegistry implements Serializable {
     XPathAttr.class,
     SetColumn.class,
     Encode.class,
-    Decode.class
+    Decode.class,
+    XmlDomParser.class
   );
 
   public UsageRegistry() {
