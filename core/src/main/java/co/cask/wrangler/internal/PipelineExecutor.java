@@ -26,9 +26,19 @@ import co.cask.wrangler.api.PipelineException;
 import co.cask.wrangler.api.Record;
 import co.cask.wrangler.api.Step;
 import co.cask.wrangler.api.StepException;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Wrangle Pipeline executes stepRegistry in the order they are specified.
@@ -36,7 +46,10 @@ import java.util.List;
 public final class PipelineExecutor implements Pipeline<Record, StructuredRecord> {
   private Directives directives;
   private PipelineContext context;
+  private List<Step> steps;
   private RecordConvertor convertor = new RecordConvertor();
+  private ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),
+                                                                  new ThreadFactoryBuilder().setDaemon(true).build());
 
   /**
    * Configures the pipeline based on the directives.
@@ -44,9 +57,14 @@ public final class PipelineExecutor implements Pipeline<Record, StructuredRecord
    * @param directives Wrangle directives.
    */
   @Override
-  public void configure(Directives directives, PipelineContext context) {
+  public void configure(Directives directives, PipelineContext context) throws PipelineException {
     this.directives = directives;
     this.context = context;
+    try {
+      this.steps = this.directives.getSteps();
+    } catch (DirectiveParseException e) {
+      throw new PipelineException()
+    }
   }
 
   /**
@@ -76,6 +94,65 @@ public final class PipelineExecutor implements Pipeline<Record, StructuredRecord
    */
   @Override
   public List<Record> execute(List<Record> records) throws PipelineException {
+    try {
+      int threads = Runtime.getRuntime().availableProcessors();
+      int chunkSize = records.size() / threads;
+      if (chunkSize == 0) {
+        for (Step step : directives.getSteps()) {
+          // If there are no records, then we short-circuit the processing and break out.
+          if (records.size() < 1) {
+            break;
+          }
+          records = step.execute(records, context);
+        }
+        return records;
+      }
+
+      int startIndex = 0;
+      Map<Integer, Future<List<Record>>> futures = new TreeMap<>();
+
+      while (startIndex < records.size()) {
+        int endIndex = startIndex + chunkSize;
+        if (endIndex > records.size()) {
+          endIndex = records.size();
+        }
+        final List<Record> newRecords = new ArrayList<>(records.subList(startIndex, endIndex));
+        Future<List<Record>> future = executor.submit(new Callable<List<Record>>() {
+
+          private List<Record> records = newRecords;
+
+          @Override
+          public List<Record> call() throws Exception {
+            for (Step step : directives.getSteps()) {
+              // If there are no records, then we short-circuit the processing and break out.
+              if (records.size() < 1) {
+                break;
+              }
+              records = step.execute(records, context);
+            }
+            return records;
+          }
+        });
+        futures.put(startIndex, future);
+
+        startIndex = endIndex;
+      }
+
+      List<List<Record>> result = new ArrayList<>(threads);
+      for (Future<List<Record>> future : futures.values()) {
+        result.add(future.get());
+      }
+
+      return Lists.newArrayList(Iterables.concat(result);
+
+    } catch (StepException | DirectiveParseException e) {
+      throw new PipelineException(e);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (ExecutionException e) {
+      e.printStackTrace();
+    }
+
     try {
       for (Step step : directives.getSteps()) {
         // If there are no records, then we short-circuit the processing and break out.

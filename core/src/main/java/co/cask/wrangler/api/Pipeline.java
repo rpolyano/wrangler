@@ -30,7 +30,7 @@ public interface Pipeline<I, O> extends Serializable {
    *
    * @param directives Wrangle directives.
    */
-  void configure(Directives directives, PipelineContext context);
+  void configure(Directives directives, PipelineContext context) throws PipelineException;
 
   /**
    * Executes the pipeline on the input.
