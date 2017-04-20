@@ -84,7 +84,6 @@ public class XmlParser extends AbstractStep {
           e.printStackTrace();
         }
         VTDNav vn = vg.getNav();
-        vn.getXML()
         record.setValue(idx, vn);
       }
     }

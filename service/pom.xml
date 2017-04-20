@@ -16,7 +16,7 @@
     <tika.version>1.14</tika.version>
     <hadoop.version>2.3.0</hadoop.version>
     <kafka.version>0.8.2.2</kafka.version>
-    <twill.version>0.9.0</twill.version>
+    <twill.version>0.11.0</twill.version>
   </properties>
 
   <dependencies>

@@ -294,7 +294,7 @@ public abstract class KafkaSimpleApiConsumer<KEY, PAYLOAD, OFFSET> {
    */
   protected final void stopService(Service service) {
     try {
-      service.stopAndWait();
+      service.stopAsync().awaitTerminated();
     } catch (Throwable t) {
       LOG.error("Failed when stopping service {}", service, t);
     }
