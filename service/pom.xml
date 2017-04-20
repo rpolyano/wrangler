@@ -15,6 +15,8 @@
     <app.main.class>co.cask.wrangler.DataPrep</app.main.class>
     <tika.version>1.14</tika.version>
     <hadoop.version>2.3.0</hadoop.version>
+    <kafka.version>0.8.2.2</kafka.version>
+    <twill.version>0.9.0</twill.version>
   </properties>
 
   <dependencies>
@@ -37,6 +39,26 @@
       <groupId>com.j256.simplemagic</groupId>
       <artifactId>simplemagic</artifactId>
       <version>${simplemagic.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-formats</artifactId>
+      <version>${cdap.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.twill</groupId>
+      <artifactId>twill-core</artifactId>
+      <version>${twill.version}</version>
+      <exclusions>
+        <!--<exclusion>-->
+          <!--<groupId>org.apache.kafka</groupId>-->
+          <!--<artifactId>kafka_2.10</artifactId>-->
+        <!--</exclusion>-->
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-compiler</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -82,6 +104,29 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>3.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka_2.10</artifactId>
+      <version>${kafka.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.sun.jdmk</groupId>
+          <artifactId>jmxtools</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.sun.jmx</groupId>
+          <artifactId>jmxri</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-compiler</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 

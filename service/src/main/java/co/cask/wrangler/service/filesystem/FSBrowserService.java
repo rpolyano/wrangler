@@ -51,7 +51,7 @@ public class FSBrowserService extends AbstractHttpServiceHandler {
   private static final Logger LOG = LoggerFactory.getLogger(FSBrowserService.class);
 
   /**
-   * Lists the content of the path specified using the {@Location}.
+   * Lists the content of the path specified using the {@link Location}.
    *
    * @param request HTTP Request Handler
    * @param responder HTTP Response Handler
@@ -71,7 +71,7 @@ public class FSBrowserService extends AbstractHttpServiceHandler {
       // Get the list of all the files.
       List<Location> locations = base.list();
       // Iterate through each file.
-      for(Location location : locations) {
+      for (Location location : locations) {
         JSONObject object = locationInfo(location);
         // If it's a directory, inspect the contents further attempting to detect the type
         String type = guessLocationType(location, 1);
@@ -84,11 +84,11 @@ public class FSBrowserService extends AbstractHttpServiceHandler {
       response.put("values", values);
       sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (IOException e) {
-      error(responder, "Error exploring directory '" + path + "'. " + e.getCause() == null
-        ? e.getMessage() : e.getCause().getMessage());
+      error(responder, "Error exploring directory '" + path + "'. " +
+        (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
     } catch (URISyntaxException e) {
-      error(responder, "Error detecting proper URI for the directory '" + path + "'. " + e.getCause() == null
-        ? e.getMessage() : e.getCause().getMessage());
+      error(responder, "Error detecting proper URI for the directory '" + path + "'. " +
+        (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
     }
   }
 
@@ -155,6 +155,7 @@ public class FSBrowserService extends AbstractHttpServiceHandler {
         return FileTypes.JAR;
 
       default:
+        // gz
         ContentInfoUtil util = new ContentInfoUtil();
         ContentInfo info = util.findMatch(location.getInputStream());
         if (info != null) {
