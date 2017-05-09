@@ -18,7 +18,6 @@ package co.cask.wrangler;
 
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.wrangler.api.Record;
-import co.cask.wrangler.executor.ParallelPipelineExecutor;
 import co.cask.wrangler.executor.PipelineExecutor;
 import co.cask.wrangler.executor.TextDirectives;
 import co.cask.wrangler.steps.transformation.functions.DDL;
@@ -43,16 +42,12 @@ public class InputFileTest {
   @Ignore
   @Test
   public void testWithFile() throws Exception {
-    Path path = Paths.get("<path to file>");
+    Path path = Paths.get("/Users/nitin/Downloads/customers.csv");
     byte[] data = Files.readAllBytes(path);
 
     String[] directives = new String[] {
       "parse-as-csv body , true",
-      "drop body",
-      "drop Cabin",
-      "drop Embarked",
-      "fill-null-or-empty Age 0",
-      "filter-row-if-true Fare < 8.06"
+      "drop state"
     };
 
     TextDirectives txtDirectives = new TextDirectives(directives);
@@ -74,14 +69,14 @@ public class InputFileTest {
       String.format("Sequential : Records %d, Duration %d", results1.size(), end - start)
     );
 
-    start = System.currentTimeMillis();
-    ParallelPipelineExecutor executor2 = new ParallelPipelineExecutor();
-    executor2.configure(txtDirectives, null);
-    List<Record> results2 = executor2.execute(records2);
-    end = System.currentTimeMillis();
-    System.out.println(
-      String.format("Parallel : Records %d, Duration %d", results2.size(), end - start)
-    );
+//    start = System.currentTimeMillis();
+//    ParallelPipelineExecutor executor2 = new ParallelPipelineExecutor();
+//    executor2.configure(txtDirectives, null);
+//    List<Record> results2 = executor2.execute(records2);
+//    end = System.currentTimeMillis();
+//    System.out.println(
+//      String.format("Parallel : Records %d, Duration %d", results2.size(), end - start)
+//    );
 
 
     Assert.assertTrue(true);

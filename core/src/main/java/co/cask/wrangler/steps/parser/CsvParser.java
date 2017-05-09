@@ -41,7 +41,7 @@ import java.util.Set;
   usage = "parse-as-csv <column> <delimiter> [<header=true|false>]",
   description = "Parses a column as CSV (comma-separated values)"
 )
-public class CsvParser extends AbstractStep {
+public class  CsvParser extends AbstractStep {
   // Column within the input row that needs to be parsed as CSV
   private String col;
 
