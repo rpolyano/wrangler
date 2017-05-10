@@ -21,6 +21,7 @@ import co.cask.cdap.api.annotation.TransactionPolicy;
 import co.cask.cdap.api.service.http.AbstractHttpServiceHandler;
 import co.cask.cdap.api.service.http.HttpServiceRequest;
 import co.cask.cdap.api.service.http.HttpServiceResponder;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.zaxxer.hikari.HikariDataSource;
@@ -44,7 +45,9 @@ import static co.cask.wrangler.service.ServiceUtils.sendJson;
  */
 public class DBExplorer extends AbstractHttpServiceHandler {
   private static final Logger LOG = LoggerFactory.getLogger(DBExplorer.class);
-
+  private static final ImmutableMap<String, String> driverMap = ImmutableMap.<String, String>builder()
+    .put("mysql", "com.mysql.jdbc.Driver")
+    .build();
 
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   @GET

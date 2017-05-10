@@ -98,6 +98,7 @@
     <httpclient.version>4.5.3</httpclient.version>
     <netty-http.version>0.16.0</netty-http.version>
     <commons-math3.version>3.6.1</commons-math3.version>
+    <h2.version>1.4.195</h2.version>
   </properties>
 
   <repositories>
