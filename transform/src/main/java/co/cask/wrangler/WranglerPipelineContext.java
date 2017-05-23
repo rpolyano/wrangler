@@ -33,6 +33,7 @@ class WranglerPipelineContext implements PipelineContext {
   private final TransformContext context;
   private StageMetrics metrics;
   private String name;
+
   private Map<String, String> properties;
 
   WranglerPipelineContext(Environment environment, TransformContext context) {
