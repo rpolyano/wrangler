@@ -16,7 +16,9 @@
 
 package co.cask.wrangler.service.explorer;
 
+
 import co.cask.cdap.api.dataset.lib.FileSet;
+import com.google.common.base.Throwables;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import org.apache.commons.io.Charsets;
@@ -95,6 +97,7 @@ public final class Explorer {
     try {
       Map<String, Object> response = new HashMap<>();
       List<Map<String, Object>> values = new ArrayList<>();
+      Map<String, String> errorFiles = new HashMap<>();
       // Trick in getting the location.
       Location base = getLocation(path);
       // Get the list of all the files.
@@ -105,18 +108,25 @@ public final class Explorer {
         if(hidden && location.getName().toString().startsWith(".")) {
           continue;
         }
-        Map<String, Object> object = locationInfo(location);
-        // If it's a directory, inspect the contents further attempting to detect the type
-        String type = guessLocationType(location, 1);
-        boolean isWrangleable = isWrangleable(type);
-        object.put("type", type);
-        object.put("wrangle", isWrangleable);
-        values.add(object);
+        try {
+          Map<String, Object> object = locationInfo(location);
+          // If it's a directory, inspect the contents further attempting to detect the type
+          String type = guessLocationType(location, 1);
+          boolean isWrangleable = isWrangleable(type);
+          object.put("type", type);
+          object.put("wrangle", isWrangleable);
+          values.add(object);
+        } catch (IOException ioe) {
+          // we don't want to throw error for listing all the files,
+          // if there was error in getting location info for a single file
+          errorFiles.put(location.getName(), Throwables.getStackTraceAsString(ioe));
+        }
       }
       response.put("status", HttpURLConnection.HTTP_OK);
       response.put("message", "Success");
       response.put("count", values.size());
       response.put("values", values);
+      response.put("errors", errorFiles);
       return response;
     } catch (IOException e){
       throw new ExplorerException(e);
