@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.wrangler.service.s3;
+package co.cask.wrangler.service.amazon;
 
 import co.cask.wrangler.dataset.connections.Connection;
 import com.amazonaws.auth.AWSCredentials;

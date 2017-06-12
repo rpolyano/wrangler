@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.wrangler.service.s3;
+package co.cask.wrangler.service.dynamodb;
 
 import co.cask.cdap.api.annotation.UseDataSet;
 import co.cask.cdap.api.data.schema.Schema;
@@ -36,9 +36,12 @@ import co.cask.wrangler.service.kafka.KafkaService;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.Bucket;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.dynamodbv2.model.ListTablesResult;
+import com.amazonaws.services.dynamodbv2.model.QueryRequest;
+import com.amazonaws.services.dynamodbv2.model.QueryResult;
+import com.amazonaws.services.dynamodbv2.model.TableDescription;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -47,16 +50,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.HttpURLConnection;
+import java.util.List;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 
 import static co.cask.wrangler.ServiceUtils.error;
 import static co.cask.wrangler.service.directive.DirectivesService.WORKSPACE_DATASET;
 
 /**
- * Manages connections with S3.
+ * Manages connections with DynamoDB.
  */
-public class S3Service extends AbstractHttpServiceHandler {
+public class DynamoDB extends AbstractHttpServiceHandler {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaService.class);
   private static final Gson gson =
     new GsonBuilder().registerTypeAdapter(Schema.class, new SchemaTypeAdapter()).create();
@@ -83,14 +90,14 @@ public class S3Service extends AbstractHttpServiceHandler {
   }
 
   /**
-   * Tests S3 Connection.
+   * Tests DynamoDB Connection.
    *
    * @param request HTTP Request handler.
    * @param responder HTTP Response handler.
    */
   @POST
   @Path("connections/s3/test")
-  public void testS3Connection(HttpServiceRequest request, HttpServiceResponder responder) {
+  public void testDynamoDBConnection(HttpServiceRequest request, HttpServiceResponder responder) {
     try {
       // Extract the body of the request and transform it to the Connection object.
       RequestExtractor extractor = new RequestExtractor(request);
@@ -102,9 +109,10 @@ public class S3Service extends AbstractHttpServiceHandler {
       }
 
       AWSCredentials credentials = new WebCredentialProvider(connection).getCredentials();
-      AmazonS3 s3 = new AmazonS3Client(credentials);
+      final AmazonDynamoDB ddb = new AmazonDynamoDBClient(credentials);
       Region region = Region.getRegion(Regions.fromName((String)connection.getProp("region")));
-      s3.setRegion(region);
+      ddb.setRegion(region);
+      ddb.listTables();
       ServiceUtils.success(responder, "Success");
     } catch (Exception e) {
       ServiceUtils.error(responder, e.getMessage());
@@ -118,8 +126,8 @@ public class S3Service extends AbstractHttpServiceHandler {
    * @param responder HTTP Response handler.
    */
   @POST
-  @Path("connections/s3")
-  public void listBuckets(HttpServiceRequest request, HttpServiceResponder responder) {
+  @Path("connections/dynamodb")
+  public void listTables(HttpServiceRequest request, HttpServiceResponder responder) {
     try {
       // Extract the body of the request and transform it to the Connection object.
       RequestExtractor extractor = new RequestExtractor(request);
@@ -131,17 +139,22 @@ public class S3Service extends AbstractHttpServiceHandler {
       }
 
       AWSCredentials credentials = new WebCredentialProvider(connection).getCredentials();
-      AmazonS3 s3 = new AmazonS3Client(credentials);
+      final AmazonDynamoDB ddb = new AmazonDynamoDBClient(credentials);
       Region region = Region.getRegion(Regions.fromName((String)connection.getProp("region")));
-      s3.setRegion(region);
+      ddb.setRegion(region);
+      ListTablesResult result = ddb.listTables();
+      List<String> tables = result.getTableNames();
 
       JsonObject response = new JsonObject();
       JsonArray values = new JsonArray();
-      for(Bucket bucket :s3.listBuckets()) {
+      for (String table : tables) {
+        TableDescription descriptor = ddb.describeTable(table).getTable();
         JsonObject object = new JsonObject();
-        object.addProperty("name", bucket.getName());
-        object.addProperty("owner", bucket.getOwner().getDisplayName());
-        object.addProperty("creation", bucket.getCreationDate().toString());
+        object.addProperty("name", table);
+        object.addProperty("status", descriptor.getTableStatus());
+        object.addProperty("creation", descriptor.getCreationDateTime().toString());
+        object.addProperty("count", descriptor.getItemCount());
+        object.addProperty("size", descriptor.getTableSizeBytes());
         values.add(object);
       }
       response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -151,6 +164,41 @@ public class S3Service extends AbstractHttpServiceHandler {
       ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (Exception e) {
       ServiceUtils.error(responder, e.getMessage());
+    }
+  }
+
+  /**
+   * Reads a table into workspace.
+   *
+   * @param request HTTP requets handler.
+   * @param responder HTTP response handler.
+   * @param id Connection id for which the tables need to be listed from database.
+   */
+  @GET
+  @Path("connections/{id}/tables/{table}/read")
+  public void read(HttpServiceRequest request, final HttpServiceResponder responder,
+                   @PathParam("id") final String id, @PathParam("table") final String table,
+                   @QueryParam("lines") final int lines) {
+    try {
+      Connection connection = store.get(id);
+      if (connection == null) {
+        throw new IllegalArgumentException(
+          String.format(
+            "Invalid connection id '%s' specified or connection does not exist.", id)
+        );
+      }
+
+      AWSCredentials credentials = new WebCredentialProvider(connection).getCredentials();
+      final AmazonDynamoDB ddb = new AmazonDynamoDBClient(credentials);
+      Region region = Region.getRegion(Regions.fromName((String)connection.getProp("region")));
+      ddb.setRegion(region);
+      QueryRequest dbbQuery = new QueryRequest(table);
+      dbbQuery.setLimit(lines);
+
+      QueryResult query = ddb.query(dbbQuery);
+    } catch (Exception e) {
+      error(responder, e.getMessage());
+    } finally {
     }
   }
 }
