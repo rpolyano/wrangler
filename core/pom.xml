@@ -242,14 +242,35 @@
         <configuration>
           <!-- directory generated-test-sources not possible with GrammarTestMojo using ClassLoader focused on /target/classes <outputDirectory>${project.build.directory}/generated-test-sources/antlr4</outputDirectory> -->
           <sourceDirectory>src/main/antlr4/</sourceDirectory>
+          <outputDirectory>${project.build.directory}/generated-sources/antlr4</outputDirectory>
           <visitor>true</visitor>
         </configuration>
         <executions>
           <execution>
             <id>antlr</id>
+            <phase>generate-sources</phase>
             <goals>
               <goal>antlr4</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/antlr4</source>
+              </sources>
+            </configuration>
           </execution>
         </executions>
       </plugin>

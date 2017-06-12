@@ -106,7 +106,7 @@ public class DatabaseService extends AbstractHttpServiceHandler {
     new GsonBuilder().registerTypeAdapter(Schema.class, new SchemaTypeAdapter()).create();
 
   // Driver class loaders cached.
-  private final LoadingCache<String, CloseableClassLoader> cache = CacheBuilder.newBuilder()
+  private final LoadingCache<String, CloseableClassLoader> cache = (LoadingCache<String, CloseableClassLoader>) CacheBuilder.newBuilder()
     .expireAfterAccess(60, TimeUnit.MINUTES)
     .removalListener(new RemovalListener<String, CloseableClassLoader>() {
       @Override
