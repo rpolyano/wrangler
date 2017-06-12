@@ -107,6 +107,8 @@
     <kafka.clients.version>0.10.2.1</kafka.clients.version>
     <aws.sdk.version>1.9.6</aws.sdk.version>
     <poi.version>3.16</poi.version>
+    <antlr4.version>4.5.3</antlr4.version>
+    <antlr4-maven-plugin.version>4.5.3</antlr4-maven-plugin.version>
   </properties>
 
   <repositories>

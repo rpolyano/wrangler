@@ -187,6 +187,19 @@
       <version>${netty-http.version}</version>
       <scope>test</scope>
     </dependency>
+    <!-- antlr -->
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>${antlr4.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-maven-plugin</artifactId>
+      <version>${antlr4.version}</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -220,6 +233,27 @@
           </items>
         </configuration>
       </plugin>
+
+      <!-- antlr maven plugin-->
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>${antlr4-maven-plugin.version}</version>
+        <configuration>
+          <!-- directory generated-test-sources not possible with GrammarTestMojo using ClassLoader focused on /target/classes <outputDirectory>${project.build.directory}/generated-test-sources/antlr4</outputDirectory> -->
+          <sourceDirectory>src/main/antlr4/</sourceDirectory>
+          <visitor>true</visitor>
+        </configuration>
+        <executions>
+          <execution>
+            <id>antlr</id>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
 
