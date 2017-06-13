@@ -14,20 +14,21 @@
  * the License.
  */
 
+package co.cask.wrangler.grammar;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-public class Run {
+public class RunParseAs {
     public static void main(String[] args) throws Exception {
         ANTLRInputStream input = new ANTLRInputStream(System.in);
-        CalculatorLexer lexer = new CalculatorLexer(input);
+        DirectiveLexer lexer = new DirectiveLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        CalculatorParser parser = new CalculatorParser(tokens);
-        ParseTree tree = parser.input();
+        DirectiveParser parser = new DirectiveParser(tokens);
+        ParseTree tree = parser.parse_as();
 
-        CalculatorBaseVisitorImpl calcVisitor = new CalculatorBaseVisitorImpl();
-        Double result = calcVisitor.visit(tree);
+        DirectiveBaseVisitorImpl directiveVisitor = new DirectiveBaseVisitorImpl();
+        String result = directiveVisitor.visit(tree);
         System.out.println("Result: " + result);
     }
 }

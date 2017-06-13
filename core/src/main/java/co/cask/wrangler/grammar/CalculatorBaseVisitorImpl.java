@@ -15,6 +15,7 @@
  */
 
 package co.cask.wrangler.grammar;
+
 import java.util.HashMap;
 
 public class CalculatorBaseVisitorImpl extends CalculatorBaseVisitor<Double> {
