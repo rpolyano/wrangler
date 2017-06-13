@@ -19,13 +19,22 @@ import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import java.io.File;
+import java.io.FileReader;
+import java.net.URL;
+
 public class RunCalculator {
     public static void main(String[] args) throws Exception {
-        ANTLRInputStream input = new ANTLRInputStream(System.in);
+        //ANTLRInputStream input = new ANTLRInputStream(System.in);
+        URL url = ParserTest.class.getClassLoader().getResource("calculate.txt");
+        File file = new File(url.getFile());
+        ANTLRInputStream input = new ANTLRInputStream(new FileReader(file));
+
         CalculatorLexer lexer = new CalculatorLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         CalculatorParser parser = new CalculatorParser(tokens);
         ParseTree tree = parser.input();
+        System.out.println(tree.toStringTree(parser));
 
         CalculatorBaseVisitorImpl calcVisitor = new CalculatorBaseVisitorImpl();
         Double result = calcVisitor.visit(tree);

@@ -16,9 +16,11 @@
 
 package co.cask.wrangler.grammar;
 
-public class DirectiveBaseVisitorImpl extends DirectiveBaseVisitor<String> {
+public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<String> {
+  /*
   @Override
-  public String visitParseAs(DirectiveParser.ParseAsContext ctx) {
-    return "action = " + ctx.ACTION().getText() + "\n" + "format = " + ctx.FILE_TYPE().getText() + "\n";
+  public String visitInputFile(SimpleDirectiveParser.ParseAsContext ctx) {
+    return "action = " + ctx..getText() + "\n" + "format = " + ctx.FILE_TYPE().getText() + "\n";
   }
+  */
 }

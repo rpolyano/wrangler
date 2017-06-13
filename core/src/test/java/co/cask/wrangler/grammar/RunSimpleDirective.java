@@ -19,15 +19,27 @@ import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-public class RunParseAs {
-    public static void main(String[] args) throws Exception {
-        ANTLRInputStream input = new ANTLRInputStream(System.in);
-        DirectiveLexer lexer = new DirectiveLexer(input);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        DirectiveParser parser = new DirectiveParser(tokens);
-        ParseTree tree = parser.parse_as();
+import java.io.File;
+import java.io.FileReader;
+import java.net.URL;
 
-        DirectiveBaseVisitorImpl directiveVisitor = new DirectiveBaseVisitorImpl();
+public class RunSimpleDirective {
+    public static void main(String[] args) throws Exception {
+
+        URL url = ParserTest.class.getClassLoader().getResource("simple_directive_tests.txt");
+        File file = new File(url.getFile());
+        ANTLRInputStream input = new ANTLRInputStream(new FileReader(file));
+
+        //ANTLRInputStream input = new ANTLRInputStream(System.in);
+
+        SimpleDirectiveLexer lexer = new SimpleDirectiveLexer(input);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        SimpleDirectiveParser parser = new SimpleDirectiveParser(tokens);
+        ParseTree tree = parser.input();
+
+        System.out.println("tree text = " + tree.toStringTree(parser));
+
+        SimpleDirectiveBaseVisitorImpl directiveVisitor = new SimpleDirectiveBaseVisitorImpl();
         String result = directiveVisitor.visit(tree);
         System.out.println("Result: " + result);
     }
