@@ -17,6 +17,7 @@
 package co.cask.wrangler.grammar;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -26,6 +27,7 @@ import java.util.List;
 /**
  * Tests the parsing of directives using wrangler.
  */
+@Ignore
 public class ParserTest {
 
   @Test
