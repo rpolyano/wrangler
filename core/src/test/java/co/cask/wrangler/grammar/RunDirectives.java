@@ -43,7 +43,7 @@ public class RunDirectives {
         DirectivesVisitor visitor = new DirectiveVisitor(new UsageRegistry());
         visitor.visit(tree);
 
-        List<Step> result = directivesVisitor.visitDirectives(tree);
-        System.out.println("Result: " + result);
+        //List<Step> result = visitor.visitDirectives(tree);
+        //System.out.println("Result: " + result);
     }
 }

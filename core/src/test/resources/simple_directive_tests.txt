@@ -1,1 +1,1 @@
-parse-as xml
+parse-as csv

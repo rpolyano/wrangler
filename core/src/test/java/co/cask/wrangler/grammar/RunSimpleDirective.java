@@ -15,32 +15,37 @@
  */
 
 package co.cask.wrangler.grammar;
+import co.cask.wrangler.api.Step;
+import co.cask.wrangler.steps.parser.CsvParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.FileReader;
 import java.net.URL;
+import java.util.List;
 
 public class RunSimpleDirective {
-    public static void main(String[] args) throws Exception {
-
+    
+    @Test
+    public void testParseAsCsv() throws Exception {
         URL url = ParserTest.class.getClassLoader().getResource("simple_directive_tests.txt");
         File file = new File(url.getFile());
         ANTLRInputStream input = new ANTLRInputStream(new FileReader(file));
-
-        //ANTLRInputStream input = new ANTLRInputStream(System.in);
-
         SimpleDirectiveLexer lexer = new SimpleDirectiveLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         SimpleDirectiveParser parser = new SimpleDirectiveParser(tokens);
         ParseTree tree = parser.input();
-
-        System.out.println("tree text = " + tree.toStringTree(parser));
-
         SimpleDirectiveBaseVisitorImpl directiveVisitor = new SimpleDirectiveBaseVisitorImpl();
-        String result = directiveVisitor.visit(tree);
-        System.out.println("Result: " + result);
+        List<Step> result = directiveVisitor.visit(tree);
+
+        //Got all the steps from file so far
+
+        Assert.assertEquals(1, result.size());
+        Step step = result.get(0);
+        Assert.assertTrue(step instanceof CsvParser);
     }
 }

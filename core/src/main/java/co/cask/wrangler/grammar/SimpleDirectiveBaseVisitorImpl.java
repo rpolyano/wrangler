@@ -16,11 +16,65 @@
 
 package co.cask.wrangler.grammar;
 
-public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<String> {
-  /*
+import co.cask.wrangler.api.DirectiveParseException;
+import co.cask.wrangler.api.Step;
+import co.cask.wrangler.steps.parser.CsvParser;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.apache.commons.lang.StringEscapeUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<List<Step>> {
+
   @Override
-  public String visitInputFile(SimpleDirectiveParser.ParseAsContext ctx) {
-    return "action = " + ctx..getText() + "\n" + "format = " + ctx.FILE_TYPE().getText() + "\n";
+  public List<Step> visitInputFile(SimpleDirectiveParser.InputFileContext ctx) {
+    List<Step> steps = new ArrayList<>();
+    for (ParseTree tree : ctx.children) {
+      List<Step> childrenSteps = tree.accept(this);
+      if (childrenSteps != null) {
+        steps.addAll(childrenSteps);
+      }
+    }
+    return steps;
   }
-  */
+
+  @Override
+  public List<Step> visitParseFileAs (SimpleDirectiveParser.ParseFileAsContext ctx) {
+    List<Step> steps = new ArrayList<>();
+    String parseAsStr = ctx.PARSE_AS().getText();
+    String fileTypeStr = ctx.FILE_TYPE().getText();
+    if (parseAsStr.equals("parse-as")) {
+      if (fileTypeStr.equals("csv")) {
+        //hard code a step really quick
+        // parse-as-csv <column> <delimiter> [<header=true/false>]
+
+        String column = "body";
+        String delimStr = ",";
+        char delimiter = delimStr.charAt(0);
+        if (delimStr.startsWith("\\")) {
+          String unescapedStr = StringEscapeUtils.unescapeJava(delimStr);
+          if (unescapedStr == null) {
+            try {
+              throw new DirectiveParseException("Invalid delimiter for CSV Parser: " + delimStr);
+            } catch (DirectiveParseException e) {
+              e.printStackTrace();
+            }
+          }
+          delimiter = unescapedStr.charAt(0);
+        }
+
+        boolean hasHeader;
+        String hasHeaderLinesOpt = null;
+        if (hasHeaderLinesOpt == null || hasHeaderLinesOpt.equalsIgnoreCase("false")) {
+          hasHeader = false;
+        } else {
+          hasHeader = true;
+        }
+        CsvParser.Options opt = new CsvParser.Options(delimiter, true);
+        steps.add(new CsvParser(0, "fakeStr", opt, column, hasHeader));
+      }
+    }
+    return steps;
+  }
 }
