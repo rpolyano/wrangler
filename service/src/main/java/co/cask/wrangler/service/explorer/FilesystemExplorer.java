@@ -26,6 +26,7 @@ import co.cask.cdap.api.service.http.HttpServiceContext;
 import co.cask.cdap.api.service.http.HttpServiceRequest;
 import co.cask.cdap.api.service.http.HttpServiceResponder;
 import co.cask.cdap.internal.io.SchemaTypeAdapter;
+import co.cask.wrangler.BoundedLineInputStream;
 import co.cask.wrangler.api.ObjectSerDe;
 import co.cask.wrangler.service.connections.ConnectionType;
 import co.cask.wrangler.PropertyIds;
@@ -265,7 +266,11 @@ public class FilesystemExplorer extends AbstractHttpServiceHandler {
       // Iterate through lines to extract only 'limit' random lines.
       // Depending on the type, the sampling of the input is performed.
       List<Record> records = new ArrayList<>();
-      BoundedLineInputStream blis = BoundedLineInputStream.iterator(location.getInputStream(), Charsets.UTF_8, lines);
+      BoundedLineInputStream blis = BoundedLineInputStream.iterator(
+        location.getInputStream(),
+        Charsets.UTF_8,
+        (int)(lines + lines*(1-fraction))
+      );
       Iterator<String> it = blis;
       if (samplingMethod == SamplingMethod.POISSON) {
         it = new Poisson<String>(fraction).sample(blis);
@@ -274,6 +279,7 @@ public class FilesystemExplorer extends AbstractHttpServiceHandler {
       } else if (samplingMethod == SamplingMethod.RESERVOIR) {
         it = new Reservoir<String>(lines).sample(blis);
       }
+
       while(it.hasNext()) {
         records.add(new Record(COLUMN_NAME, it.next()));
       }

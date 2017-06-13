@@ -1,6 +1,6 @@
 package co.cask.wrangler.service.filesystem;
 
-import co.cask.wrangler.service.explorer.BoundedLineInputStream;
+import co.cask.wrangler.BoundedLineInputStream;
 import co.cask.wrangler.service.explorer.Explorer;
 import org.junit.Assert;
 import org.junit.Test;

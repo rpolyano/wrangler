@@ -17,6 +17,7 @@
 package co.cask.wrangler.service.explorer;
 
 import co.cask.cdap.api.dataset.lib.FileSet;
+import co.cask.wrangler.BoundedLineInputStream;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import org.apache.commons.io.Charsets;
