@@ -29,7 +29,7 @@ import java.util.List;
 public class RunDirectives {
     public static void main(String[] args) throws Exception {
 
-        URL url = ParserTest.class.getClassLoader().getResource("directive_parser_good_tests.txt");
+        URL url = RunDirectives.class.getClassLoader().getResource("directive_parser_good_tests.txt");
         File file = new File(url.getFile());
         ANTLRInputStream input = new ANTLRInputStream(new FileReader(file));
 

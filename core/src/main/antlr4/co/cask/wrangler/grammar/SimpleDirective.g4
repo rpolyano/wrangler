@@ -1,7 +1,6 @@
 grammar SimpleDirective;
 
 //lexer rules
-//FILE_TYPE : 'csv' | 'json'| 'xml';
 PARSE_AS : 'parse-as';
 NL     : '\n';
 WS     : [ \t\r]+ -> skip;
@@ -13,7 +12,7 @@ FILE_TYPE: [a-z\-]+;
 //directiveExp: DIRECTIVE_NAME parameters
 //load step classes to find THE class to use (annotation)
 
-//make parse-as ken works first!
+//parse-as ken works now
 
 
 //parser rules

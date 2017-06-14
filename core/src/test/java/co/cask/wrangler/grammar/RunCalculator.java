@@ -26,7 +26,7 @@ import java.net.URL;
 public class RunCalculator {
     public static void main(String[] args) throws Exception {
         //ANTLRInputStream input = new ANTLRInputStream(System.in);
-        URL url = ParserTest.class.getClassLoader().getResource("calculate.txt");
+        URL url = RunCalculator.class.getClassLoader().getResource("calculate.txt");
         File file = new File(url.getFile());
         ANTLRInputStream input = new ANTLRInputStream(new FileReader(file));
 

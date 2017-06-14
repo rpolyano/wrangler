@@ -16,6 +16,7 @@
 
 package co.cask.wrangler.grammar;
 
+import co.cask.wrangler.executor.UsageRegistry;
 import co.cask.wrangler.steps.parser.KenParser;
 import org.reflections.Reflections;
 import co.cask.wrangler.api.AbstractStep;
@@ -30,6 +31,13 @@ import java.util.List;
 import java.util.Set;
 
 public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<List<Step>> {
+  private final UsageRegistry registry;
+  private String directive;
+  private int line;
+
+  public SimpleDirectiveBaseVisitorImpl(UsageRegistry registry) {
+    this.registry = registry;
+  }
 
   @Override
   public List<Step> visitInputFile(SimpleDirectiveParser.InputFileContext ctx) {
@@ -51,10 +59,10 @@ public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<L
     List<Step> steps = new ArrayList<>();
     String fileType = ctx.FILE_TYPE().getText();
     String parserClassName = fileType.substring(0, 1).toUpperCase() + fileType.substring(1) + "Parser";
-    Reflections reflections = new Reflections("co.cask.wrangler");
+    Reflections reflections = new Reflections("co.cask.wrangler.steps.parser");
     Set<Class<? extends AbstractStep>> stepClasses = reflections.getSubTypesOf(AbstractStep.class);
     for (Class<? extends AbstractStep> stepClass : stepClasses) {
-      if (stepClass.getName().equals(parserClassName)) {
+      if (stepClass.getSimpleName().equals(parserClassName)) {
         parserClass = stepClass;
       }
     }
