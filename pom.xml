@@ -187,6 +187,11 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+    <dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-unit-test</artifactId>
       <version>${cdap.version}</version>
@@ -201,11 +206,6 @@
           <artifactId>cdap-explore-jdbc</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>

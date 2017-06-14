@@ -90,15 +90,15 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro</artifactId>
-      <version>${avro.version}</version>
-    </dependency>
-    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>${guava.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+      </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
@@ -204,7 +204,7 @@
     <dependency>
       <groupId>org.reflections</groupId>
       <artifactId>reflections</artifactId>
-      <version>0.9.11</version>
+      <version>0.9.10</version>
     </dependency>
   </dependencies>
 
@@ -240,7 +240,7 @@
         </configuration>
       </plugin>
 
-      <!-- antlr maven plugin-->
+       <!--antlr maven plugin-->
       <plugin>
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-maven-plugin</artifactId>

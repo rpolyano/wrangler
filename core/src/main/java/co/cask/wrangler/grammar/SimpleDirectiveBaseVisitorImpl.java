@@ -51,7 +51,7 @@ public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<L
     List<Step> steps = new ArrayList<>();
     String fileType = ctx.FILE_TYPE().getText();
     String parserClassName = fileType.substring(0, 1).toUpperCase() + fileType.substring(1) + "Parser";
-    Reflections reflections = new Reflections();
+    Reflections reflections = new Reflections("co.cask.wrangler");
     Set<Class<? extends AbstractStep>> stepClasses = reflections.getSubTypesOf(AbstractStep.class);
     for (Class<? extends AbstractStep> stepClass : stepClasses) {
       if (stepClass.getName().equals(parserClassName)) {
