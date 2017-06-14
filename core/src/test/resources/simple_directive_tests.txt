@@ -1,1 +1,1 @@
-parse-as csv
+parse-as ken

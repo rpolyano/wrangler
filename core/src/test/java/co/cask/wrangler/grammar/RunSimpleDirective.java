@@ -17,6 +17,7 @@
 package co.cask.wrangler.grammar;
 import co.cask.wrangler.api.Step;
 import co.cask.wrangler.steps.parser.CsvParser;
+import co.cask.wrangler.steps.parser.KenParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -31,7 +32,7 @@ import java.util.List;
 public class RunSimpleDirective {
     
     @Test
-    public void testParseAsCsv() throws Exception {
+    public void testParseAsKen() throws Exception {
         URL url = ParserTest.class.getClassLoader().getResource("simple_directive_tests.txt");
         File file = new File(url.getFile());
         ANTLRInputStream input = new ANTLRInputStream(new FileReader(file));
@@ -46,6 +47,6 @@ public class RunSimpleDirective {
 
         Assert.assertEquals(1, result.size());
         Step step = result.get(0);
-        Assert.assertTrue(step instanceof CsvParser);
+        Assert.assertTrue(step instanceof KenParser);
     }
 }

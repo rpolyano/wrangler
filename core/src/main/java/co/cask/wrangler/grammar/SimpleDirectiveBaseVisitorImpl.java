@@ -16,14 +16,18 @@
 
 package co.cask.wrangler.grammar;
 
+import co.cask.wrangler.steps.parser.KenParser;
+import org.reflections.Reflections;
+import co.cask.wrangler.api.AbstractStep;
 import co.cask.wrangler.api.DirectiveParseException;
 import co.cask.wrangler.api.Step;
-import co.cask.wrangler.steps.parser.CsvParser;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.commons.lang.StringEscapeUtils;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<List<Step>> {
 
@@ -41,40 +45,63 @@ public class SimpleDirectiveBaseVisitorImpl extends SimpleDirectiveBaseVisitor<L
 
   @Override
   public List<Step> visitParseFileAs (SimpleDirectiveParser.ParseFileAsContext ctx) {
+
+    //find class based on directive parameter
+    Class<? extends AbstractStep> parserClass = null;
     List<Step> steps = new ArrayList<>();
-    String parseAsStr = ctx.PARSE_AS().getText();
-    String fileTypeStr = ctx.FILE_TYPE().getText();
-    if (parseAsStr.equals("parse-as")) {
-      if (fileTypeStr.equals("csv")) {
-        //hard code a step really quick
-        // parse-as-csv <column> <delimiter> [<header=true/false>]
-
-        String column = "body";
-        String delimStr = ",";
-        char delimiter = delimStr.charAt(0);
-        if (delimStr.startsWith("\\")) {
-          String unescapedStr = StringEscapeUtils.unescapeJava(delimStr);
-          if (unescapedStr == null) {
-            try {
-              throw new DirectiveParseException("Invalid delimiter for CSV Parser: " + delimStr);
-            } catch (DirectiveParseException e) {
-              e.printStackTrace();
-            }
-          }
-          delimiter = unescapedStr.charAt(0);
-        }
-
-        boolean hasHeader;
-        String hasHeaderLinesOpt = null;
-        if (hasHeaderLinesOpt == null || hasHeaderLinesOpt.equalsIgnoreCase("false")) {
-          hasHeader = false;
-        } else {
-          hasHeader = true;
-        }
-        CsvParser.Options opt = new CsvParser.Options(delimiter, true);
-        steps.add(new CsvParser(0, "fakeStr", opt, column, hasHeader));
+    String fileType = ctx.FILE_TYPE().getText();
+    String parserClassName = fileType.substring(0, 1).toUpperCase() + fileType.substring(1) + "Parser";
+    Reflections reflections = new Reflections();
+    Set<Class<? extends AbstractStep>> stepClasses = reflections.getSubTypesOf(AbstractStep.class);
+    for (Class<? extends AbstractStep> stepClass : stepClasses) {
+      if (stepClass.getName().equals(parserClassName)) {
+        parserClass = stepClass;
       }
     }
-    return steps;
+
+    if (parserClass != null) {
+      String column = "body";
+      String delimStr = ",";
+      char delimiter = delimStr.charAt(0);
+      if (delimStr.startsWith("\\")) {
+        String unescapedStr = StringEscapeUtils.unescapeJava(delimStr);
+        if (unescapedStr == null) {
+          try {
+            throw new DirectiveParseException("Invalid delimiter for CSV Parser: " + delimStr);
+          } catch (DirectiveParseException e) {
+            e.printStackTrace();
+          }
+        }
+        delimiter = unescapedStr.charAt(0);
+      }
+      boolean hasHeader;
+      String hasHeaderLinesOpt = null;
+      if (hasHeaderLinesOpt == null || hasHeaderLinesOpt.equalsIgnoreCase("false")) {
+        hasHeader = false;
+      } else {
+        hasHeader = true;
+      }
+      //this opt is still hardcoded for csv parser
+      KenParser.Options opt = new KenParser.Options(delimiter, true);
+      try {
+        Step parseStep = parserClass.asSubclass(Step.class)
+                .getConstructor(int.class, String.class, KenParser.Options.class, String.class, boolean.class)
+                .newInstance(0, "fake_detail", opt, column, hasHeader);
+        steps.add(parseStep);
+        return steps;
+      } catch (InstantiationException e) {
+        e.printStackTrace();
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      } catch (InvocationTargetException e) {
+        e.printStackTrace();
+      } catch (NoSuchMethodException e) {
+        e.printStackTrace();
+      }
+      return steps;
+    }
+    else {
+      return steps;
+    }
   }
 }
