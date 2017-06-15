@@ -43,13 +43,19 @@ public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<Nod
   @Override
   public NodeValue visitInputFile(GeneralDirectiveParser.InputFileContext ctx) {
     List<Step> steps = new ArrayList<>();
-    for (ParseTree directiveStatementTree : ctx.children) {
+    //for (ParseTree directiveStatementTree : ctx.children) {
+    int lineo = 1;
+    for (int i = 0; i < ctx.getChildCount(); i ++) {
+      ParseTree directiveStatementTree = ctx.getChild(i);
       NodeValue nodeValue = directiveStatementTree.accept(this);
-      if (nodeValue != null && nodeValue.isSteps()) {
-        List<Step> childrenSteps = nodeValue.asSteps();
-        steps.addAll(childrenSteps);
+      if (nodeValue != null && nodeValue.isAbtractStep()) {
+        AbstractStep step = nodeValue.asAbstractStep();
+        step.setLineno(lineo);
+        steps.add(step);
+        lineo ++;
       }
     }
+    //}
     return new NodeValue(steps);
   }
 
@@ -69,15 +75,13 @@ public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<Nod
   public NodeValue visitDirectiveStatment(GeneralDirectiveParser.DirectiveStatmentContext ctx) {
     //fake line number and detail
     int FAKE_LINE_NO = 0;
-    String FAKE_DETAIL = "fake_detail";
 
     //find class from directive statement
     Class<? extends AbstractStep> directiveClass = null;
-    List<Step> steps = new ArrayList<>();
-
     //get directive and column name from children nodes
     String directiveWant = visit(ctx.directiveName()).asString();
     String colName = visit(ctx.colName()).asString();
+    String detail = directiveWant + " " + colName;
 
     //TODO: might be super slow to do this every time type in a directive. Need to do this in pre-process.
     Reflections reflections = new Reflections("co.cask.wrangler.steps");
@@ -94,8 +98,8 @@ public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<Nod
     if (directiveClass != null) {
       try {
         AbstractStep step = directiveClass.getConstructor(int.class, String.class, String.class)
-                .newInstance(FAKE_LINE_NO, FAKE_DETAIL, colName);
-        steps.add(step);
+                .newInstance(FAKE_LINE_NO, detail, colName);
+        return new NodeValue(step);
       } catch (NoSuchMethodException e) {
         e.printStackTrace();
       } catch (IllegalAccessException e) {
@@ -106,7 +110,7 @@ public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<Nod
         e.printStackTrace();
       }
     }
-    //this can only return a empty list or a list of size = 1
-    return new NodeValue(steps);
+    //no matched step class found
+    return null;
   }
 }

@@ -35,5 +35,9 @@ public abstract class AbstractStep implements Step<Record, Record> {
   public String toString() {
     return String.format("[Step %d] - <%s>", lineno, detail);
   }
+
+  public void setLineno(int lineno) {
+    this.lineno = lineno;
+  }
 }
 

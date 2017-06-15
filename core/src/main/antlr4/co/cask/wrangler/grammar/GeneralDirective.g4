@@ -1,3 +1,4 @@
+//Recognize this so far: <directiveName> <columnName>
 grammar GeneralDirective;
 
 //lexer rules

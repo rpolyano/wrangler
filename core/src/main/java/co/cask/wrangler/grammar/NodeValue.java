@@ -16,6 +16,7 @@
 
 package co.cask.wrangler.grammar;
 
+import co.cask.wrangler.api.AbstractStep;
 import co.cask.wrangler.api.Step;
 
 import java.util.List;
@@ -30,7 +31,7 @@ public class NodeValue {
 
   public NodeValue(Object object) {
     this.value = object;
-    if (!(isString() || isSteps()))
+    if (!(isString() || isSteps() || isAbtractStep()))
       throw new IllegalArgumentException();
   }
 
@@ -41,13 +42,14 @@ public class NodeValue {
     return (String) value;
   }
 
-  public boolean isSteps() {
-    return value instanceof List;
-  }
-
+  public boolean isSteps() { return value instanceof List; }
   public List<Step> asSteps() {
     return (List<Step>) value;
   }
+
+  public boolean isAbtractStep() { return value instanceof AbstractStep; }
+  public AbstractStep asAbstractStep() { return (AbstractStep) value; }
+
 
   public Object getValue() {
     return value;
