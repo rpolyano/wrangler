@@ -1,9 +1,9 @@
 
 
-trim
+trim firstName
 
-ltrim
+ltrim address
 
-rtrim
+rtrim phone
 
 

@@ -107,7 +107,14 @@ public final class GeneralDirectiveCompiler {
     // If lexer and parsing were successful, then start iterating
     // AST to convert it to steps.
     GeneralDirectiveVisitorImpl visitor = new GeneralDirectiveVisitorImpl(registry);
-    steps.addAll(visitor.visit(tree));
-    return true;
+    NodeValue nodeValue = visitor.visit(tree);
+    if (nodeValue != null && nodeValue.isSteps()) {
+      steps.addAll(nodeValue.asSteps());
+      return true;
+    }
+    else {
+      //TODO: give a proper error msg out
+      return false;
+    }
   }
 }

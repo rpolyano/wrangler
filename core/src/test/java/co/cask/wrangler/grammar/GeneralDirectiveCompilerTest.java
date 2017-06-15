@@ -57,7 +57,7 @@ public class GeneralDirectiveCompilerTest {
   @Test
   public void testGoodStringParsing() throws Exception {
     GeneralDirectiveCompiler compiler = new GeneralDirectiveCompiler();
-    boolean status = compiler.compile("\n\ntrim\nltrim\nrtrim\n\n");
+    boolean status = compiler.compile("\n\ntrim firstName\nltrim address\nrtrim phone\n\n");
     if (! status) {
       List<String> errors = compiler.getErrors();
       for (String error : errors) {

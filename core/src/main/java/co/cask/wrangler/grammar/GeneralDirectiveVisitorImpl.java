@@ -31,7 +31,7 @@ import java.util.Set;
 /**
  * Created by kewang on 6/14/17.
  */
-public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<List<Step>> {
+public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<NodeValue> {
   private final UsageRegistry registry;
   private String directive;
   private int line;
@@ -41,42 +41,60 @@ public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<Lis
   }
 
   @Override
-  public List<Step> visitInputFile(GeneralDirectiveParser.InputFileContext ctx) {
+  public NodeValue visitInputFile(GeneralDirectiveParser.InputFileContext ctx) {
     List<Step> steps = new ArrayList<>();
-    for (ParseTree tree : ctx.children) {
-      List<Step> childrenSteps = tree.accept(this);
-      if (childrenSteps != null) {
+    for (ParseTree directiveStatementTree : ctx.children) {
+      NodeValue nodeValue = directiveStatementTree.accept(this);
+      if (nodeValue != null && nodeValue.isSteps()) {
+        List<Step> childrenSteps = nodeValue.asSteps();
         steps.addAll(childrenSteps);
       }
     }
-    return steps;
+    return new NodeValue(steps);
   }
 
   @Override
-  public List<Step> visitDirectiveStatment(GeneralDirectiveParser.DirectiveStatmentContext ctx) {
+  public NodeValue visitDirectiveNameWord(GeneralDirectiveParser.DirectiveNameWordContext ctx) {
+    String directiveName = ctx.WORD().getText();
+    return new NodeValue(directiveName);
+  }
+
+  @Override
+  public NodeValue visitColNameWord(GeneralDirectiveParser.ColNameWordContext ctx) {
+    String colName = ctx.WORD().getText();
+    return new NodeValue(colName);
+  }
+
+  @Override
+  public NodeValue visitDirectiveStatment(GeneralDirectiveParser.DirectiveStatmentContext ctx) {
     //fake line number and detail
     int FAKE_LINE_NO = 0;
     String FAKE_DETAIL = "fake_detail";
-    String FAKE_COL = "fake_col";
+
     //find class from directive statement
     Class<? extends AbstractStep> directiveClass = null;
     List<Step> steps = new ArrayList<>();
-    String commandInput = ctx.DIRECTIVE_NAME().getText();
+
+    //get directive and column name from children nodes
+    String directiveWant = visit(ctx.directiveName()).asString();
+    String colName = visit(ctx.colName()).asString();
+
+    //TODO: might be super slow to do this every time type in a directive. Need to do this in pre-process.
     Reflections reflections = new Reflections("co.cask.wrangler.steps");
     Set<Class<? extends AbstractStep>> stepClasses = reflections.getSubTypesOf(AbstractStep.class);
     for (Class<? extends AbstractStep> stepClass : stepClasses) {
       //if usage matches, that's the class we want to use
       Usage usage = stepClass.getAnnotation(Usage.class);
-      String commandWant = usage.directive();
-      if (commandInput.equals(commandWant)) {
+      String directiveHave = usage.directive();
+      if (directiveWant.equals(directiveHave)) {
         directiveClass = stepClass;
       }
     }
-    //TODO: if not found proper class, return empty step list for now, might need to change
+    //TODO: if not found proper class, return empty step list for now, need to change
     if (directiveClass != null) {
       try {
         AbstractStep step = directiveClass.getConstructor(int.class, String.class, String.class)
-                .newInstance(FAKE_LINE_NO, FAKE_DETAIL, FAKE_COL);
+                .newInstance(FAKE_LINE_NO, FAKE_DETAIL, colName);
         steps.add(step);
       } catch (NoSuchMethodException e) {
         e.printStackTrace();
@@ -88,7 +106,7 @@ public class GeneralDirectiveVisitorImpl extends GeneralDirectiveBaseVisitor<Lis
         e.printStackTrace();
       }
     }
-    return steps;
+    //this can only return a empty list or a list of size = 1
+    return new NodeValue(steps);
   }
-
 }
