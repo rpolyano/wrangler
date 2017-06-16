@@ -40,6 +40,10 @@ public class Copy extends AbstractStep {
   private String destination;
   private boolean force;
 
+  public Copy(int lineno, String detail, String source, String destination, String forceOpt) {
+    this(lineno, detail, source, destination, (forceOpt != null && forceOpt.equalsIgnoreCase("true")) ? true: false);
+  }
+
   public Copy(int lineno, String detail, String source, String destination, boolean force) {
     super(lineno, detail);
     this.source = source;

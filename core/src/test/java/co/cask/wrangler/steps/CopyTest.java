@@ -31,6 +31,31 @@ import java.util.List;
 public class CopyTest {
 
   @Test
+  public void testBasicCopyWithOptionalArg() throws Exception {
+    String[] directives = new String[] {
+      "parse-as-csv body ,",
+      "copy body_1 name false"
+    };
+
+    List<Record> records = Arrays.asList(
+      new Record("body", "A,B,1"),
+      new Record("body", "D,E,2"),
+      new Record("body", "G,H,3")
+    );
+
+    records = PipelineTest.execute(directives, records);
+
+    Assert.assertTrue(records.size() == 3);
+    Assert.assertEquals(5, records.get(0).length()); // should have copied to another column
+    Assert.assertEquals("A", records.get(0).getValue("name")); // Should have copy of 'A'
+    Assert.assertEquals("D", records.get(1).getValue("name")); // Should have copy of 'D'
+    Assert.assertEquals("G", records.get(2).getValue("name")); // Should have copy of 'G'
+    Assert.assertEquals(records.get(0).getValue("name"), records.get(0).getValue("body_1"));
+    Assert.assertEquals(records.get(1).getValue("name"), records.get(1).getValue("body_1"));
+    Assert.assertEquals(records.get(2).getValue("name"), records.get(2).getValue("body_1"));
+  }
+
+  @Test
   public void testBasicCopy() throws Exception {
     String[] directives = new String[] {
       "parse-as-csv body ,",
@@ -53,6 +78,22 @@ public class CopyTest {
     Assert.assertEquals(records.get(0).getValue("name"), records.get(0).getValue("body_1"));
     Assert.assertEquals(records.get(1).getValue("name"), records.get(1).getValue("body_1"));
     Assert.assertEquals(records.get(2).getValue("name"), records.get(2).getValue("body_1"));
+  }
+
+  @Test(expected = StepException.class)
+  public void testCopyToExistingColumnWithOptionalArg() throws Exception {
+    String[] directives = new String[] {
+      "parse-as-csv body ,",
+      "copy body_1 body_2 false"
+    };
+
+    List<Record> records = Arrays.asList(
+      new Record("body", "A,B,1"),
+      new Record("body", "D,E,2"),
+      new Record("body", "G,H,3")
+    );
+
+    records = PipelineTest.execute(directives, records);
   }
 
   @Test(expected = StepException.class)
