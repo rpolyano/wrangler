@@ -14,7 +14,8 @@
  * the License.
  */
 
-package co.cask.wrangler.grammar;
+package co.cask.wrangler.grammar.examples;
+import co.cask.wrangler.executor.UsageRegistry;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -23,21 +24,24 @@ import java.io.File;
 import java.io.FileReader;
 import java.net.URL;
 
-public class RunCalculator {
+public class RunDirectives {
     public static void main(String[] args) throws Exception {
-        //ANTLRInputStream input = new ANTLRInputStream(System.in);
-        URL url = RunCalculator.class.getClassLoader().getResource("calculate.txt");
+
+        URL url = RunDirectives.class.getClassLoader().getResource("directive_parser_good_tests.txt");
         File file = new File(url.getFile());
         ANTLRInputStream input = new ANTLRInputStream(new FileReader(file));
 
-        CalculatorLexer lexer = new CalculatorLexer(input);
+        DirectivesLexer lexer = new DirectivesLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        CalculatorParser parser = new CalculatorParser(tokens);
-        ParseTree tree = parser.input();
-        System.out.println(tree.toStringTree(parser));
+        DirectivesParser parser = new DirectivesParser(tokens);
+        ParseTree tree = parser.directives();
+        System.out.println("Result: " + tree.toStringTree(parser));
 
-        CalculatorBaseVisitorImpl calcVisitor = new CalculatorBaseVisitorImpl();
-        Double result = calcVisitor.visit(tree);
-        System.out.println("Result: " + result);
+
+        DirectivesVisitor visitor = new DirectiveVisitor(new UsageRegistry());
+        visitor.visit(tree);
+
+        //List<Step> result = visitor.visitDirectives(tree);
+        //System.out.println("Result: " + result);
     }
 }

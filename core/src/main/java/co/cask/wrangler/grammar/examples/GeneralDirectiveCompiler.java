@@ -1,12 +1,12 @@
 /*
  * Copyright © 2017 Cask Data, Inc.
- *
+ *  
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- *
+ *  
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ *  
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.wrangler.grammar;
+package co.cask.wrangler.grammar.examples;
 
 import co.cask.wrangler.api.Step;
 import co.cask.wrangler.executor.UsageRegistry;
@@ -34,12 +34,12 @@ import java.util.List;
 /**
  * Compiles directive into steps.
  */
-public final class SimpleDirectiveCompiler {
+public final class GeneralDirectiveCompiler {
   private final List<Step> steps = new ArrayList<>();
   private final List<String> errors = new ArrayList<>();
   private final UsageRegistry registry;
 
-  public SimpleDirectiveCompiler() {
+  public GeneralDirectiveCompiler() {
     this.registry = new UsageRegistry();
   }
 
@@ -80,9 +80,9 @@ public final class SimpleDirectiveCompiler {
   }
 
   private boolean compile(CharStream stream) {
-    SimpleDirectiveLexer lexer = new SimpleDirectiveLexer(stream);
+    GeneralDirectiveLexer lexer = new GeneralDirectiveLexer(stream);
     TokenStream tokenizer = new CommonTokenStream(lexer);
-    SimpleDirectiveParser parser = new SimpleDirectiveParser(tokenizer);
+    GeneralDirectiveParser parser = new GeneralDirectiveParser(tokenizer);
 
     // Replace Lexer and Parser Error listeners with our own.
     ErrorListener listener = new ErrorListener();
@@ -106,8 +106,15 @@ public final class SimpleDirectiveCompiler {
 
     // If lexer and parsing were successful, then start iterating
     // AST to convert it to steps.
-    SimpleDirectiveBaseVisitorImpl visitor = new SimpleDirectiveBaseVisitorImpl(registry);
-    steps.addAll(visitor.visit(tree));
-    return true;
+    GeneralDirectiveVisitorImpl visitor = new GeneralDirectiveVisitorImpl(registry);
+    NodeValue nodeValue = visitor.visit(tree);
+    if (nodeValue != null && nodeValue.isSteps()) {
+      steps.addAll(nodeValue.asSteps());
+      return true;
+    }
+    else {
+      //TODO: give a proper error msg out
+      return false;
+    }
   }
 }

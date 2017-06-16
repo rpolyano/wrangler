@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.wrangler.grammar;
+package co.cask.wrangler.grammar.examples;
 
 import co.cask.wrangler.executor.UsageRegistry;
 import co.cask.wrangler.steps.parser.KenParser;

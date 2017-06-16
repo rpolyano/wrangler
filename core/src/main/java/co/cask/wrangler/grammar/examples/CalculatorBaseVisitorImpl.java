@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.wrangler.grammar;
+package co.cask.wrangler.grammar.examples;
 
 import java.util.HashMap;
 

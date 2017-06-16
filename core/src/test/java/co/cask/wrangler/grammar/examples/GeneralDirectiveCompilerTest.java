@@ -14,10 +14,12 @@
  * the License.
  */
 
-package co.cask.wrangler.grammar;
+package co.cask.wrangler.grammar.examples;
 
 import co.cask.wrangler.api.Step;
-import co.cask.wrangler.steps.parser.KenParser;
+import co.cask.wrangler.steps.transformation.LeftTrim;
+import co.cask.wrangler.steps.transformation.RightTrim;
+import co.cask.wrangler.steps.transformation.Trim;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -28,13 +30,13 @@ import java.util.List;
 /**
  * Created by kewang on 6/14/17.
  */
-public class SimpleDirectiveCompilerTest {
+public class GeneralDirectiveCompilerTest {
 
   @Test
   public void testGoodFileParsing() throws Exception {
-    URL url = SimpleDirectiveCompilerTest.class.getClassLoader().getResource("simple_directive_tests.txt");
+    URL url = GeneralDirectiveCompilerTest.class.getClassLoader().getResource("general_directive_tests.txt");
     File file = new File(url.getFile());
-    SimpleDirectiveCompiler compiler = new SimpleDirectiveCompiler();
+    GeneralDirectiveCompiler compiler = new GeneralDirectiveCompiler();
     boolean status = compiler.compile(file);
     if (! status) {
       List<String> errors = compiler.getErrors();
@@ -44,15 +46,16 @@ public class SimpleDirectiveCompilerTest {
     }
     Assert.assertTrue(status);
     List<Step> steps = compiler.getCompiledObjects();
-    Assert.assertEquals(1, steps.size());
-    Step firstStep = steps.get(0);
-    Assert.assertTrue(firstStep instanceof KenParser);
+    Assert.assertEquals(3, steps.size());
+    Assert.assertTrue(steps.get(0) instanceof Trim);
+    Assert.assertTrue(steps.get(1) instanceof LeftTrim);
+    Assert.assertTrue(steps.get(2) instanceof RightTrim);
   }
 
   @Test
   public void testGoodStringParsing() throws Exception {
-    SimpleDirectiveCompiler compiler = new SimpleDirectiveCompiler();
-    boolean status = compiler.compile("parse-as ken");
+    GeneralDirectiveCompiler compiler = new GeneralDirectiveCompiler();
+    boolean status = compiler.compile("\n\ntrim firstName\nltrim address\nrtrim phone\n\n");
     if (! status) {
       List<String> errors = compiler.getErrors();
       for (String error : errors) {
@@ -61,8 +64,9 @@ public class SimpleDirectiveCompilerTest {
     }
     Assert.assertTrue(status);
     List<Step> steps = compiler.getCompiledObjects();
-    Assert.assertEquals(1, steps.size());
-    Step firstStep = steps.get(0);
-    Assert.assertTrue(firstStep instanceof KenParser);
+    Assert.assertEquals(3, steps.size());
+    Assert.assertTrue(steps.get(0) instanceof Trim);
+    Assert.assertTrue(steps.get(1) instanceof LeftTrim);
+    Assert.assertTrue(steps.get(2) instanceof RightTrim);
   }
 }
