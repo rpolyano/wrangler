@@ -1,0 +1,4 @@
+send-to-error { a < 10 } window
+send-to-error { a < 10 }
+send-to-error !dq:isNumber(value) window
+send-to-error { !dq:isNumber(value) } window

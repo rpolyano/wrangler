@@ -1,0 +1,3 @@
+send-to-error col1 col2
+send-to-error { a < 10 } window
+send-to-error { a < 10 } window door

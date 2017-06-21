@@ -3,42 +3,65 @@
 grammar DirectivesGrammar;
 
 //lexer rules
-//TODO: this apache token --> http://httpd.apache.org/docs/current/mod/mod_log_config.html#formats
-APACHE_LOG_TOKEN: '%';
 NL: '\n';
 WS: [ \t\r]+;
 
+OBrace   : '{';
+CBrace   : '}';
 
-MATRIX: 'matrix';
-WORD: [a-zA-Z\-_]+;
-NUMBER: [0-9]+;
-ANY_CHARS : .+;
+Bool
+ : 'true'
+ | 'false'
+ ;
 
-anyString: ANY_CHARS;
+Number
+ : Int ('.' Digit*)?
+ ;
+
+Identifier
+ : [:a-zA-Z_\-] [:a-zA-Z_0-9\-]*
+ ;
+
+String
+ : ["] (~["\r\n] | '\\\\' | '\\"')* ["]
+ | ['] (~['\r\n] | '\\\\' | '\\\'')* [']
+ ;
+
+Expression
+  : (~[{}"\r\n] | '\\\\' | '\\"')+
+  ;
+
+Comment
+ : ('//' ~[\r\n]* | '/*' .*? '*/') -> skip
+ ;
 
 /*
-text
-  : (anyString | WORD | NUMBER) # AnyCharText
-  ;
+Space
+ : [ \t\r\n\u000C] -> skip
+ ;
 */
 
+fragment Int
+ : [1-9] Digit*
+ | '0'
+ ;
+
+fragment Digit
+ : [0-9]
+ ;
 
 //parser rules
 directives
-  : NL* directive ((NL*) directive)* (NL*) EOF # DirectiveList
+  : NL* (directive*) (NL*) EOF # DirectiveList
   ;
 
 directive
-  : command (WS*) arguments # DirectiveNoExp
-  | command (WS*) arguments expression # DirectiveWithExp
-  ;
-
-expression
-  : anyString # ExpressionWord
+  : command (WS+) arguments NL # DirectiveNoExp
+  //| command (WS*) arguments expression # DirectiveWithExp
   ;
 
 command
-  : WORD # CommandWord
+  : Identifier # CommandWord
   ;
 
 arguments
@@ -46,12 +69,17 @@ arguments
   ;
 
 argument
-  : NUMBER  # Number
+  : Number  # Number
   | columnName # ColumnNameArg
+  | expression # ExpressionArg
   ;
 
 columnName
-  : WORD # columnNameWord
+  : Identifier # columnNameWord
+  ;
+
+expression
+  : OBrace Expression CBrace # expBlock
   ;
 
 
