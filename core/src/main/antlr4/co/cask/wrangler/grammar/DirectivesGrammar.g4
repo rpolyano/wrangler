@@ -1,5 +1,3 @@
-
-//TODO: use embedded java code (semantic predicates) to handle Apache expresion !!!
 grammar DirectivesGrammar;
 
 //lexer rules
