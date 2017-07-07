@@ -23,7 +23,9 @@ import co.cask.wrangler.api.Step;
 import co.cask.wrangler.api.StepException;
 import co.cask.wrangler.parser.TextDirectives;
 import co.cask.wrangler.steps.transformation.MaskShuffle;
+import co.cask.wrangler.steps.transformation.Quantization;
 import co.cask.wrangler.steps.transformation.Split;
+import co.cask.wrangler.utils.RangeMap;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -100,27 +102,24 @@ public class PipelineTest {
 
   @Test
   public void testQuantizationRangeAndPattern() throws Exception {
-    TreeMap<Double, String> rangeMap = new TreeMap<>();
-    rangeMap.put(0.1, "A");
-    rangeMap.put(0.9, null);
-    rangeMap.put(2.0, "B");
-    rangeMap.put(3.9, null);
-    rangeMap.put(4.0, "C");
-    rangeMap.put(5.9, null);
+    RangeMap<Double, String> rangeMap = new RangeMap<>();
+    rangeMap.put(0.1, 0.9, "A");
+    rangeMap.put(2.0, 3.9, "B");
+    rangeMap.put(4.0, 5.9, "C");
 
-    String s = mappedValue(rangeMap, 2.2);
+    String s = rangeMap.get(2.2);
     Assert.assertEquals("B", s);
 
-    Matcher m = Pattern.compile("([+-]?\\d+(?:\\.\\d+)?):([+-]?\\d+(?:\\.\\d+)?)=(.[^,]*)").matcher("0.9:2.1=Foo,2.2:3.4=9.2");
-    TreeMap<String, String> stringRangeMap = new TreeMap<>();
+    Matcher m = Pattern.compile(Quantization.RANGE_PATTERN).matcher("0.9:2.1=Foo,2.2:3.4=9.2");
+    RangeMap<String, String> stringRangeMap = new RangeMap<>();
+
     while(m.find()) {
       String lower = m.group(1);
       String upper = m.group(2);
       String value = m.group(3);
-      stringRangeMap.put(lower, value);
-      stringRangeMap.put(upper, null);
+      stringRangeMap.put(lower, upper, value);
     }
-    Assert.assertEquals("{0.9=Foo, 2.1=null, 2.2=9.2, 3.4=null}", stringRangeMap.toString());
+    Assert.assertEquals("[[0.9..2.1]=Foo, [2.2..3.4]=9.2]", stringRangeMap.toString());
   }
 
   private static <K, V> V mappedValue(TreeMap<K, V> rangeMap, K key) {

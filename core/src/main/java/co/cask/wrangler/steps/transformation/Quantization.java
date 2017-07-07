@@ -21,10 +21,11 @@ import co.cask.wrangler.api.PipelineContext;
 import co.cask.wrangler.api.Record;
 import co.cask.wrangler.api.StepException;
 import co.cask.wrangler.api.Usage;
+import co.cask.wrangler.utils.RangeMap;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,8 +39,9 @@ import java.util.regex.Pattern;
   description = "Quanitize the range of numbers into label values."
 )
 public class Quantization extends AbstractStep {
-  private static final String RANGE_PATTERN="([+-]?\\d+(?:\\.\\d+)?):([+-]?\\d+(?:\\.\\d+)?)=(.[^,]*)";
-  private final TreeMap<Double, String> rangeMap = new TreeMap<>();
+  @VisibleForTesting
+  public static final String RANGE_PATTERN="([+-]?\\d+(?:\\.\\d+)?):([+-]?\\d+(?:\\.\\d+)?)=(.[^,]*)";
+  private final RangeMap<Double, String> rangeMap = new RangeMap<>();
 
   private String col1;
   private String col2;
@@ -53,9 +55,7 @@ public class Quantization extends AbstractStep {
     while(matcher.find()) {
       double lower = Double.parseDouble(matcher.group(1));
       double upper = Double.parseDouble(matcher.group(2));
-      rangeMap.put(lower, matcher.group(3));
-      // store null in place of upper bound
-      rangeMap.put(upper, null);
+      rangeMap.put(lower, upper, matcher.group(3));
     }
   }
 
