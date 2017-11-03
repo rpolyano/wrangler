@@ -476,8 +476,9 @@ public class GCSService extends AbstractHttpServiceHandler {
         properties.put(PropertyIds.FILE_NAME, file.getName());
         properties.put(PropertyIds.URI, String.format("gs://%s/%s", bucket, path));
         properties.put(PropertyIds.FILE_PATH, path);
-        properties.put(PropertyIds.CONNECTION_TYPE, ConnectionType.FILE.getType());
+        properties.put(PropertyIds.CONNECTION_TYPE, ConnectionType.GCS.getType());
         properties.put(PropertyIds.SAMPLER_TYPE, SamplingMethod.NONE.getMethod());
+        properties.put(PropertyIds.CONNECTION_ID, connectionId);
         properties.put("bucket", bucket);
         table.writeProperties(id, properties);
 
@@ -490,6 +491,7 @@ public class GCSService extends AbstractHttpServiceHandler {
         object.addProperty(PropertyIds.FILE_PATH, path);
         object.addProperty(PropertyIds.FILE_NAME, blobName);
         object.addProperty(PropertyIds.SAMPLER_TYPE, SamplingMethod.NONE.getMethod());
+        object.addProperty(PropertyIds.CONNECTION_ID, connectionId);
         object.addProperty("bucket", bucket);
         values.add(object);
 
