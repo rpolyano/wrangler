@@ -68,5 +68,7 @@ public class DataPrep extends AbstractApplication {
                new KafkaService(),
                new DatabaseService()
     );
+
+    addSpark(new SparkDirectiveExecutor());
   }
 }

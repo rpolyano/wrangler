@@ -51,4 +51,9 @@ public class DataQualityTest {
     Assert.assertEquals(true, DataQuality.inrange(1.1, 1, 10));
   }
 
+  @Test
+  public void testDate() throws Exception {
+    Assert.assertEquals(true, DataQuality.isDate("12/12/2017", "mm/dd/yyyy"));
+    Assert.assertEquals(false, DataQuality.isDate("09-12-2017", "mm/dd/yyyy"));
+  }
 }
