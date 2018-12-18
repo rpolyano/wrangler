@@ -201,19 +201,17 @@ public final class SchemaRegistryClient {
     this.readTimeout = readTimeout;
   }
 
-  private URI concat(URI uri, String extraPath)
-    throws URISyntaxException, MalformedURLException {
+  private URI concat(URI uri, String extraPath) {
     String newPath = uri.getPath() + '/' + extraPath;
-    URI newUri = uri.resolve(newPath);
-    return newUri;
+    return uri.resolve(newPath);
   }
 
   private <T> T request(URL url, String method, Type classz) throws IOException, RestClientException {
-    return request(url, method, null, new HashMap<String, String>(), classz);
+    return request(url, method, null, new HashMap<>(), classz);
   }
 
   private <T> T request(URL url, String method, byte[] body,
-                            Map<String, String> headers, Type classz) throws IOException, RestClientException {
+                        Map<String, String> headers, Type classz) throws IOException, RestClientException {
     HttpURLConnection connection = null;
     try {
       connection = (HttpURLConnection) url.openConnection();

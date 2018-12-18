@@ -18,125 +18,132 @@ package co.cask.wrangler.dataset.schema;
 
 import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.dataset.DataSetException;
+import co.cask.cdap.api.dataset.table.Put;
 import co.cask.cdap.api.dataset.table.Row;
 import co.cask.cdap.api.dataset.table.Table;
+import co.cask.wrangler.proto.schema.SchemaEntry;
+import co.cask.wrangler.proto.schema.SchemaInfo;
 import com.google.common.base.Charsets;
 
 import java.util.HashSet;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
- * This class {@link SchemaRegistry} is a {@link co.cask.cdap.api.dataset.Dataset} that is responsible
- * for managing the schema registry store.
+ * This class {@link SchemaRegistry} is responsible for managing the schema registry store.
+ *
+ * A schema in the registry is really a collection of schema entries. Each entry is identified by the schema id and
+ * a version number. Each entry within the same schema shares the same metadata, such as a name, description, type, etc.
+ * An entry contains the actual schema bytes that clients can use.
+ *
+ * Before a schema entry can be added, the schema must be created. At that point, no entries exist.
+ * When an entry is added to a schema, the registry assigns a version number to that entry.
+ * Each schema will keep track of the latest entry in the schema.
+ *
+ * Specific schema entries can be deleted, as well as the entire schema.
+ * TODO: (CDAP-14661) fix bug where latest version does not get updated when latest version is deleted
+ *
  */
 public final class SchemaRegistry  {
+  public static final String DATASET_NAME = "schemaRegistry";
   // Table in which all the information of the schema is stored.
   private final Table table;
 
-  // Key space for all the schema storage.
-  private static final String KEY_SPACE = "schema:";
-
   // Following are the column names stored in the table for schema registry.
-  private static final byte[] NAME_COL             = Bytes.toBytes("name");
-  private static final byte[] DESC_COL             = Bytes.toBytes("description");
-  private static final byte[] CREATED_COL          = Bytes.toBytes("created");
-  private static final byte[] UPDATED_COL          = Bytes.toBytes("updated");
-  private static final byte[] TYPE_COL             = Bytes.toBytes("type");
-  private static final byte[] AUTO_VERSION_COL     = Bytes.toBytes("auto");
-  private static final byte[] ACTIVE_VERSION_COL   = Bytes.toBytes("current");
+  private static final String NAME_COL = "name";
+  private static final String DESC_COL = "description";
+  private static final String CREATED_COL = "created";
+  private static final String UPDATED_COL = "updated";
+  private static final String TYPE_COL = "type";
+  private static final String AUTO_VERSION_COL = "auto";
+  private static final String ACTIVE_VERSION_COL = "current";
 
   public SchemaRegistry(Table table) {
     this.table = table;
   }
 
   /**
-   * Creates an entry in the schema registry.
+   * Creates a schema.
    *
-   * @param id of the schema.
-   * @param name of the schema.
-   * @param description for the schema.
+   * @param info the schema information to create
+   * @throws SchemaAlreadyExistsException if a schema with the same id already exists
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
    */
-  public void create(String id, String name, String description, SchemaDescriptorType type)
-    throws SchemaRegistryException {
-    // Schema registry columns.
-    byte[][] columns = new byte[][] {
-      NAME_COL, DESC_COL, CREATED_COL, TYPE_COL, AUTO_VERSION_COL, ACTIVE_VERSION_COL
-    };
+  public void createSchema(SchemaInfo info) throws SchemaRegistryException {
+    SchemaRow schemaRow = getSchemaRow(info.getId());
+    if (schemaRow == null) {
+      throw new SchemaAlreadyExistsException(String.format("Schema '%s' already exists", info.getId()));
+    }
 
-    byte[][] data = new byte[][] {
-      Bytes.toBytes(name),
-      Bytes.toBytes(description),
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
-      Bytes.toBytes(type.getType()),
-      Bytes.toBytes(1L),
-      Bytes.toBytes(1L)
-    };
+    schemaRow = new SchemaRow(info);
 
     try {
-      table.put(toIdKey(id), columns, data);
+      table.put(schemaRow.toPut());
     } catch (DataSetException e) {
       throw new SchemaRegistryException(
-        String.format("Unable to create schema descriptor '%s'. '%s'",
-                      id, e.getMessage())
-      );
+        String.format("Unable to create schema descriptor '%s'. %s", info.getId(), e.getMessage()));
     }
   }
 
   /**
-   * Deletes the entrie schema definition for the id specified.
+   * Adds a new entry to an existing schema.
    *
-   * @param id of the schema.
+   * @param id the schema id
+   * @param specification the specification to add
+   * @return the version number of the newly added entry
+   * @throws SchemaNotFoundException if the schema does not exist
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
    */
-  public void delete(String id) throws SchemaRegistryException {
-    try {
-      table.delete(toIdKey(id));
-    } catch (DataSetException e) {
-      throw new SchemaRegistryException(
-        String.format("Unable to delete schema '%s'",
-                      e.getMessage())
-      );
+  public long addEntry(String id, byte[] specification) throws SchemaRegistryException {
+    SchemaRow schemaRow = getSchemaRow(id);
+    if (schemaRow == null) {
+      throw new SchemaNotFoundException(String.format("Schema '%s' not found.", id));
     }
-  }
-
-  /**
-   * Adds a new version of schema to an existing schema entry.
-   *
-   * @param id of the schema.
-   * @param specification of the schema to be added.
-   * @throws SchemaRegistryException
-   */
-  public long add(String id,  byte[] specification) throws SchemaRegistryException {
-    long version = getNextVersion(id);
-    // Schema registry columns.
-    byte[][] columns = new byte[][] {
-      toVersionColumn(version), UPDATED_COL, ACTIVE_VERSION_COL
-    };
-
-    byte[][] data = new byte[][] {
-      specification,
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
-      Bytes.toBytes(version)
-    };
+    long version = schemaRow.getAuto() + 1;
+    SchemaRow updated = new SchemaRow(schemaRow.getId(), schemaRow.getName(), schemaRow.getDescription(),
+                                      schemaRow.getType(), schemaRow.getCreated(), System.currentTimeMillis() / 1000,
+                                      version, version);
     try {
-      table.put(toIdKey(id), columns, data);
+      // write updated schema row
+      table.put(updated.toPut());
+      // write entry
+      Put entry = new Put(Bytes.toBytes(schemaRow.getId()));
+      entry.add(toVersionColumn(version), specification);
+      table.put(entry);
     } catch (DataSetException e) {
       throw new SchemaRegistryException(
-        String.format("Unable to add schema for id '%s'. '%s'",
-                      id, e.getMessage())
-      );
+        String.format("Unable to add entry to schema '%s'. %s", id, e.getMessage()));
     }
     return version;
   }
 
   /**
-   * Deletes a specified version of the schema.
+   * Deletes the schema and all corresponding entries.
+   *
+   * @param id the schema id
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
+   */
+  public void deleteSchema(String id) throws SchemaRegistryException {
+    try {
+      table.delete(Bytes.toBytes(id));
+    } catch (DataSetException e) {
+      throw new SchemaRegistryException(
+        String.format("Unable to delete schema '%s'. %s", id, e.getMessage()));
+    }
+  }
+
+  /**
+   * Deletes a specific entry in the schema.
+   *
+   * TODO: (CDAP-14661) if the 'current' version is deleted, the 'current' version must be updated.
    *
    * @param id of the schema to be deleted.
    * @param version of the schema to be deleted.
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
    */
-  public void remove(String id, long version) throws SchemaRegistryException {
+  public void deleteEntry(String id, long version) throws SchemaRegistryException {
     try {
-      table.delete(toIdKey(id), toVersionColumn(version));
+      table.delete(Bytes.toBytes(id), toVersionColumn(version));
     } catch (DataSetException e) {
       throw new SchemaRegistryException(
         String.format("Unable to delete schema '%s'",
@@ -151,10 +158,11 @@ public final class SchemaRegistry  {
    * @param id of the schema to be checked
    * @param version version of the schema to be checked.
    * @return true if id and version matches, else false.
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
    */
   public boolean hasSchema(String id, long version) throws SchemaRegistryException {
     try {
-      Row row = table.get(toIdKey(id));
+      Row row = table.get(Bytes.toBytes(id));
       if (row.isEmpty()) {
         return false;
       }
@@ -171,14 +179,15 @@ public final class SchemaRegistry  {
   }
 
   /**
-   * Checks if there is a schema entry, its not necessary that there are any version of schema registered.
+   * Checks if the schema exists. It is not necessary that there are entries registered.
    *
-   * @param id of the schema to be checked for.
-   * @return true if it exists, false otherwise.
+   * @param id the schema to check for
+   * @return whether the schema exists
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
    */
   public boolean hasSchema(String id) throws SchemaRegistryException {
     try {
-      Row row = table.get(toIdKey(id));
+      Row row = table.get(Bytes.toBytes(id));
       if (row.isEmpty()) {
         return false;
       }
@@ -196,10 +205,11 @@ public final class SchemaRegistry  {
    *
    * @param id of schema for which all version of registered schema versions should be returned.
    * @return list of schema versions.
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
    */
   public Set<Long> getVersions(String id) throws SchemaRegistryException {
     try {
-      Row row = table.get(toIdKey(id));
+      Row row = table.get(Bytes.toBytes(id));
       if (row.isEmpty()) {
         return new HashSet<>();
       }
@@ -223,122 +233,59 @@ public final class SchemaRegistry  {
   }
 
   /**
-   * Given an id, returns the name of the schema.
+   * Get a specific schema entry.
    *
-   * @param id of the schema for which name needs to be returned.
-   * @return string value for the id.
+   * @param id the schema id
+   * @param version the entry version
+   * @return the schema entry
+   * @throws SchemaNotFoundException if the schema or entry does not exist
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
    */
-  public String getName(String id) throws SchemaRegistryException {
-    try {
-      return Bytes.toString(table.get(toIdKey(id), NAME_COL));
-    } catch (DataSetException e) {
-      throw new SchemaRegistryException(
-        String.format("Unable to retrieve name field for id '%s'. '%s'",
-                      id, e.getMessage())
-      );
-    }
-  }
-
-  public String getDescription(String id) throws SchemaRegistryException {
-    try {
-      return Bytes.toString(table.get(toIdKey(id), DESC_COL));
-    } catch (DataSetException e) {
-      throw new SchemaRegistryException(
-        String.format("Unable to retrieve description field for id '%s'. '%s'",
-                      id, e.getMessage())
-      );
-    }
-  }
-
-  public SchemaDescriptorType getType(String id) throws SchemaRegistryException {
-    try {
-      String type = Bytes.toString(table.get(toIdKey(id), TYPE_COL));
-      return SchemaDescriptorType.fromString(type);
-    } catch (DataSetException e) {
-      throw new SchemaRegistryException(
-        String.format("Unable to retrieve description field for id '%s'. '%s'",
-                      id, e.getMessage())
-      );
-    }
-  }
-
-  public byte[] getSchema(String id, long version) throws SchemaRegistryException {
-    try {
-      return table.get(toIdKey(id), toVersionColumn(version));
-    } catch (DataSetException e) {
-      throw new SchemaRegistryException(
-        String.format("Unable to check if schema id and version exists. '%s'",
-                      e.getMessage())
-      );
-    }
-  }
-
   public SchemaEntry get(String id, long version) throws SchemaRegistryException {
     try {
-      String name = getName(id);
-      String description = getDescription(id);
-      SchemaDescriptorType type = getType(id);
+      SchemaRow schemaRow = getSchemaRow(id);
+      if (schemaRow == null) {
+        throw new SchemaNotFoundException(String.format("Schema '%s' not found.", id));
+      }
+      byte[] specification = table.get(Bytes.toBytes(id), toVersionColumn(version));
+      if (specification == null) {
+        throw new SchemaNotFoundException(String.format("Schema '%s' version '%d' not found.", id, version));
+      }
       Set<Long> versions = getVersions(id);
-      byte[] specification = table.get(toIdKey(id), toVersionColumn(version));
-      long current = getCurrentVersion(id);
-      return new SchemaEntry(id, name, description, type, versions, specification, current);
+      return new SchemaEntry(id, schemaRow.getName(), schemaRow.getDescription(), schemaRow.getType(),
+                             schemaRow.getCreated(), schemaRow.getUpdated(), versions, specification, version);
     } catch (DataSetException e) {
       throw new SchemaRegistryException(
-        String.format("Unable to check if schema id and version exists. '%s'",
-                      e.getMessage())
-      );
+        String.format("Unable to get schema '%s' version '%d'. %s", id, version, e.getMessage()));
     }
   }
 
+  /**
+   * Get the latest schema entry.
+   *
+   * @param id the schema id
+   * @return the schema entry
+   * @throws SchemaNotFoundException if the schema does not exist or there is no latest entry
+   * @throws SchemaRegistryException if there was an issue reading from or writing to the underlying storage system
+   */
   public SchemaEntry get(String id) throws SchemaRegistryException {
     try {
-      long version = getCurrentVersion(id);
-      String name = getName(id);
-      String description = getDescription(id);
-      SchemaDescriptorType type = getType(id);
+      SchemaRow schemaRow = getSchemaRow(id);
+      if (schemaRow == null) {
+        throw new SchemaNotFoundException(String.format("Schema '%s' not found.", id));
+      }
+      Long latestVersion = schemaRow.getCurrent();
+      if (latestVersion == null) {
+        throw new SchemaNotFoundException(String.format("No entries for schema '%s' were found", id));
+      }
+      byte[] specification = table.get(Bytes.toBytes(id), toVersionColumn(latestVersion));
       Set<Long> versions = getVersions(id);
-      byte[] specification = table.get(toIdKey(id), toVersionColumn(version));
-      long current = getCurrentVersion(id);
-      return new SchemaEntry(id, name, description, type, versions, specification, current);
+      return new SchemaEntry(id, schemaRow.getName(), schemaRow.getDescription(), schemaRow.getType(),
+                             schemaRow.getCreated(), schemaRow.getUpdated(), versions, specification, latestVersion);
     } catch (DataSetException e) {
       throw new SchemaRegistryException(
-        String.format("Unable to check if schema id and version exists. '%s'",
-                      e.getMessage())
-      );
+        String.format("Unable to get latest version of schema '%s'. %s", id, e.getMessage()));
     }
-  }
-
-  public byte[] getSchema(String id) throws SchemaRegistryException {
-    long version = getCurrentVersion(id);
-    return getSchema(id, version);
-  }
-
-  public long getCurrentVersion(String id) throws SchemaRegistryException {
-    try {
-      byte[] bytes = table.get(toIdKey(id), ACTIVE_VERSION_COL);
-      return Bytes.toLong(bytes);
-    } catch (DataSetException e) {
-      throw new SchemaRegistryException(
-        String.format("Unable to value current version of schema id '%s'. '%s'",
-                      id, e.getMessage())
-      );
-    }
-  }
-
-  private long getNextVersion(String id) throws SchemaRegistryException {
-    try {
-      long nextVersion = table.incrementAndGet(toIdKey(id), AUTO_VERSION_COL, 1);
-      return nextVersion - 1;
-    } catch (DataSetException e) {
-      throw new SchemaRegistryException(
-        String.format("Unable to value next version of schema id '%s'. '%s'",
-                      id, e.getMessage())
-      );
-    }
-  }
-
-  private byte[] toIdKey(String id) {
-    return Bytes.toBytes(String.format("%s%s", KEY_SPACE, id));
   }
 
   private byte[] toVersionColumn(long version) {
@@ -346,5 +293,12 @@ public final class SchemaRegistry  {
     return ver.getBytes(Charsets.UTF_8);
   }
 
-
+  @Nullable
+  private SchemaRow getSchemaRow(String id) {
+    Row row = table.get(Bytes.toBytes(id));
+    if (row.isEmpty()) {
+      return null;
+    }
+    return SchemaRow.from(row);
+  }
 }

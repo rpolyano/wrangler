@@ -16,21 +16,16 @@
 
 package co.cask.wrangler.service.schema;
 
-import co.cask.cdap.api.annotation.UseDataSet;
-import co.cask.cdap.api.common.Bytes;
-import co.cask.cdap.api.dataset.table.Table;
 import co.cask.cdap.api.service.http.AbstractHttpServiceHandler;
 import co.cask.cdap.api.service.http.HttpServiceContext;
 import co.cask.cdap.api.service.http.HttpServiceRequest;
 import co.cask.cdap.api.service.http.HttpServiceResponder;
-import co.cask.wrangler.DataPrep;
-import co.cask.wrangler.dataset.schema.SchemaDescriptorType;
-import co.cask.wrangler.dataset.schema.SchemaEntry;
 import co.cask.wrangler.dataset.schema.SchemaRegistry;
 import co.cask.wrangler.dataset.schema.SchemaRegistryException;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
+import co.cask.wrangler.proto.ServiceResponse;
+import co.cask.wrangler.proto.schema.SchemaEntry;
+import co.cask.wrangler.proto.schema.SchemaEntryId;
+import co.cask.wrangler.proto.schema.SchemaInfo;
 
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;
@@ -45,16 +40,12 @@ import javax.ws.rs.QueryParam;
 
 import static co.cask.wrangler.ServiceUtils.error;
 import static co.cask.wrangler.ServiceUtils.notFound;
-import static co.cask.wrangler.ServiceUtils.sendJson;
 import static co.cask.wrangler.ServiceUtils.success;
 
 /**
  * This class {@link SchemaRegistryService} provides schema management service.
  */
 public class SchemaRegistryService extends AbstractHttpServiceHandler {
-
-  @UseDataSet(DataPrep.CONNECTIONS_DATASET)
-  private Table table;
 
   private SchemaRegistry registry;
 
@@ -68,13 +59,15 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
   @Override
   public void initialize(HttpServiceContext context) throws Exception {
     super.initialize(context);
-    registry = new SchemaRegistry(table);
+    registry = new SchemaRegistry(context.getDataset(SchemaRegistry.DATASET_NAME));
   }
 
   /**
    * Creates an entry for Schema with id, name, description and type of schema.
    * if the 'id' already exists, then it overwrites the data with new information.
    * This responds with HTTP - OK (200) or Internal Error (500).
+   *
+   * TODO: (CDAP-14652) this should be a POST not a PUT and should use a request body and not query params
    *
    * @param request HTTP request handler.
    * @param responder HTTP response handler.
@@ -88,26 +81,19 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
   public void create(HttpServiceRequest request, HttpServiceResponder responder,
                      @QueryParam("id") String id, @QueryParam("name") String name,
                      @QueryParam("description") String description, @QueryParam("type") String type) {
+    SchemaInfo schemaInfo;
     try {
-      if (id == null || id.isEmpty()) {
-        error(responder, "id field is empty. id cannot be null");
-        return;
-      }
-      if (name == null || name.isEmpty()) {
-        error(responder, "name field is empty. name cannot be null");
-        return;
-      }
-      if (type == null || SchemaDescriptorType.fromString(type) == null) {
-        error(responder, "Not valid schema type specified.");
-        return;
-      }
-      if (description == null || description.isEmpty()) {
-        error(responder, "Description cannot be empty");
-        return;
-      }
-      registry.create(id, name, description, SchemaDescriptorType.fromString(type));
+      long now = System.currentTimeMillis() / 1000;
+      schemaInfo = SchemaInfo.of(id, name, description, type, now, now);
+    } catch (IllegalArgumentException e) {
+      error(responder, HttpURLConnection.HTTP_BAD_REQUEST, e.getMessage());
+      return;
+    }
+
+    try {
+      registry.createSchema(schemaInfo);
       success(responder, String.format("Successfully created schema entry with id '%s', name '%s'", id, name));
-    } catch (IllegalArgumentException | SchemaRegistryException e) {
+    } catch (SchemaRegistryException e) {
       error(responder, e.getMessage());
     }
   }
@@ -132,6 +118,8 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
    *
    * On any issues, returns error with proper error message and Internal Server error (500).
    *
+   * TODO: (CDAP-14652) this seems like it should be a POST on schemas/{id}/versions
+   *
    * @param request HTTP request handler.
    * @param responder HTTP response handler.
    * @param id of the schema being uploaded.
@@ -154,20 +142,9 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
     }
 
     try {
-      if (bytes != null) {
-        long version = registry.add(id, bytes);
-        JsonObject response = new JsonObject();
-        JsonArray array = new JsonArray();
-        JsonObject object = new JsonObject();
-        object.addProperty("id", id);
-        object.addProperty("version", version);
-        array.add(object);
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", "Success");
-        response.addProperty("count", array.size());
-        response.add("values", array);
-        sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      }
+      long version = registry.addEntry(id, bytes);
+      ServiceResponse<SchemaEntryId> response = new ServiceResponse<>(new SchemaEntryId(id, version));
+      responder.sendJson(response);
     } catch (SchemaRegistryException e) {
       error(responder, e.getMessage());
     }
@@ -192,7 +169,7 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
         notFound(responder, "Id " + id + " not found.");
         return;
       }
-      registry.delete(id);
+      registry.deleteSchema(id);
       success(responder, "Successfully deleted schema " + id);
     } catch (SchemaRegistryException e) {
       error(responder, e.getMessage());
@@ -216,7 +193,7 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
         notFound(responder, "Id " + id + " version " + version + " not found.");
         return;
       }
-      registry.remove(id, version);
+      registry.deleteEntry(id, version);
       success(responder, "Successfully deleted version '" + version + "' of schema " + id);
     } catch (SchemaRegistryException e) {
       error(responder, e.getMessage());
@@ -241,27 +218,8 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
         return;
       }
       SchemaEntry entry = registry.get(id, version);
-      JsonObject response = new JsonObject();
-      JsonArray array = new JsonArray();
-      JsonObject object = new JsonObject();
-      object.addProperty("id", id);
-      object.addProperty("name", entry.getName());
-      object.addProperty("version", version);
-      object.addProperty("description", entry.getDescription());
-      object.addProperty("type", entry.getType().getType());
-      object.addProperty("current", entry.getCurrent());
-      object.addProperty("specification", Bytes.toHexString(entry.getSpecification()));
-      JsonArray versions = new JsonArray();
-      for (Long elementVersion : entry.getVersions()) {
-        versions.add(new JsonPrimitive(elementVersion));
-      }
-      object.add("versions", versions);
-      array.add(object);
-      response.addProperty("status", HttpURLConnection.HTTP_OK);
-      response.addProperty("message", "Success");
-      response.addProperty("count", array.size());
-      response.add("values", array);
-      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      ServiceResponse<SchemaEntry> response = new ServiceResponse<>(entry);
+      responder.sendJson(response);
     } catch (SchemaRegistryException e) {
       error(responder, e.getMessage());
     }
@@ -285,27 +243,8 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
         return;
       }
       SchemaEntry entry = registry.get(id);
-      JsonObject response = new JsonObject();
-      JsonArray array = new JsonArray();
-      JsonObject object = new JsonObject();
-      object.addProperty("id", id);
-      object.addProperty("name", entry.getName());
-      object.addProperty("version", entry.getCurrent());
-      object.addProperty("description", entry.getDescription());
-      object.addProperty("type", entry.getType().getType());
-      object.addProperty("current", entry.getCurrent());
-      object.addProperty("specification", Bytes.toHexString(entry.getSpecification()));
-      JsonArray versions = new JsonArray();
-      for (Long elementVersion : entry.getVersions()) {
-        versions.add(new JsonPrimitive(elementVersion));
-      }
-      object.add("versions", versions);
-      array.add(object);
-      response.addProperty("status", HttpURLConnection.HTTP_OK);
-      response.addProperty("message", "Success");
-      response.addProperty("count", array.size());
-      response.add("values", array);
-      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      ServiceResponse<SchemaEntry> response = new ServiceResponse<>(entry);
+      responder.sendJson(response);
     } catch (SchemaRegistryException e) {
       error(responder, e.getMessage());
     }
@@ -314,6 +253,8 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
   /**
    * Returns list of versions for a give schema id.
    *
+   * TODO: (CDAP-14652) this should return a 404 if the schema does not exist
+   *
    * @param request HTTP request handler.
    * @param responder HTTP response handler.
    * @param id of the schema.
@@ -321,19 +262,10 @@ public class SchemaRegistryService extends AbstractHttpServiceHandler {
   @GET
   @Path("schemas/{id}/versions")
   public void versions(HttpServiceRequest request, HttpServiceResponder responder,
-                  @PathParam("id") String id) {
+                       @PathParam("id") String id) {
     try {
-      Set<Long> versions = registry.getVersions(id);
-      JsonObject response = new JsonObject();
-      JsonArray array = new JsonArray();
-      for (Long elementVersion : versions) {
-        array.add(new JsonPrimitive(elementVersion));
-      }
-      response.addProperty("status", HttpURLConnection.HTTP_OK);
-      response.addProperty("message", "Success");
-      response.addProperty("count", array.size());
-      response.add("values", array);
-      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      ServiceResponse<Set<Long>> response = new ServiceResponse<Set<Long>>(registry.getVersions(id));
+      responder.sendJson(response);
     } catch (SchemaRegistryException e) {
       error(responder, e.getMessage());
     }
