@@ -30,6 +30,7 @@ import co.cask.wrangler.proto.ServiceResponse;
 import co.cask.wrangler.proto.schema.SchemaDescriptorType;
 import co.cask.wrangler.proto.schema.SchemaEntry;
 import co.cask.wrangler.proto.schema.SchemaEntryVersion;
+import co.cask.wrangler.proto.schema.SchemaId;
 import com.google.gson.Gson;
 
 import java.nio.ByteBuffer;
@@ -70,25 +71,38 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
     registry = new SchemaRegistry(table);
   }
 
-  /**
-   * Creates an entry for Schema with id, name, description and type of schema.
-   * if the 'id' already exists, then it overwrites the data with new information.
-   * This responds with HTTP - OK (200) or Internal Error (500).
-   *
-   * @param request HTTP request handler.
-   * @param responder HTTP response handler.
-   * @param id of schema to be created.
-   * @param name for the schema id being created.
-   * @param description associated with schema.
-   * @param type of schema.
-   */
+  @PUT
+  @Path("contexts/{context}/schemas")
+  public void create(HttpServiceRequest request, HttpServiceResponder responder,
+                     @PathParam("context") String context,
+                     @QueryParam("id") String id, @QueryParam("name") String name,
+                     @QueryParam("description") String description, @QueryParam("type") String type) {
+    create(responder, SchemaId.of(context, id), name, description, type);
+  }
+
   @PUT
   @Path("schemas")
   public void create(HttpServiceRequest request, HttpServiceResponder responder,
                      @QueryParam("id") String id, @QueryParam("name") String name,
                      @QueryParam("description") String description, @QueryParam("type") String type) {
+    create(responder, SchemaId.of(getContext().getNamespace(), id), name, description, type);
+  }
+
+  /**
+   * Creates an entry for Schema with id, name, description and type of schema.
+   * if the 'id' already exists, then it overwrites the data with new information.
+   * This responds with HTTP - OK (200) or Internal Error (500).
+   *
+   * @param responder the HTTP response handler
+   * @param id the id of the schema to create
+   * @param name the name of the schema to create
+   * @param description the description of the schema
+   * @param type the type of schema
+   */
+  private void create(HttpServiceResponder responder, SchemaId id, String name,
+                      String description, String type) {
     try {
-      if (id == null || id.isEmpty()) {
+      if (id.getId() == null || id.getId().isEmpty()) {
         error(responder, "Schema id must be specified.");
         return;
       }
@@ -114,6 +128,19 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
     }
   }
 
+  @POST
+  @Path("schemas/{id}")
+  public void upload(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("id") String id) {
+    uploadSchema(request, responder, SchemaId.of(getContext().getNamespace(), id));
+  }
+
+  @POST
+  @Path("contexts/{context}/schemas/{id}")
+  public void upload(HttpServiceRequest request, HttpServiceResponder responder,
+                     @PathParam("context") String context, @PathParam("id") String id) {
+    uploadSchema(request, responder, SchemaId.of(context, id));
+  }
+
   /**
    * Uploads a schema to be associated with the schema id.
    * This API will automatically increment the schema version. Upon adding the schema to associated id in
@@ -134,14 +161,11 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
    *
    * On any issues, returns error with proper error message and Internal Server error (500).
    *
-   * @param request HTTP request handler.
-   * @param responder HTTP response handler.
-   * @param id of the schema being uploaded.
+   * @param request the HTTP request handler
+   * @param responder the HTTP response handler
+   * @param id the id of the schema to upload
    */
-  @POST
-  @Path("schemas/{id}")
-  public void upload(HttpServiceRequest request, HttpServiceResponder responder,
-                     @PathParam("id") String id) {
+  private void uploadSchema(HttpServiceRequest request, HttpServiceResponder responder, SchemaId id) {
     byte[] bytes = null;
     ByteBuffer content = request.getContent();
     if (content != null && content.hasRemaining()) {
@@ -165,20 +189,30 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
     }
   }
 
-  /**
-   * Deletes the entire entry from the registry.
-   *
-   * Everything related to the schema id is deleted completely.
-   * All versions of schema are also deleted.
-   *
-   * @param request HTTP request handler.
-   * @param responder HTTP response handler.
-   * @param id of the schema to be deleted.
-   */
   @DELETE
   @Path("schemas/{id}")
   public void delete(HttpServiceRequest request, HttpServiceResponder responder,
                      @PathParam("id") String id) {
+    deleteSchema(responder, SchemaId.of(getContext().getNamespace(), id));
+  }
+
+  @DELETE
+  @Path("contexts/{context}/schemas/{id}")
+  public void delete(HttpServiceRequest request, HttpServiceResponder responder,
+                     @PathParam("context") String context, @PathParam("id") String id) {
+    deleteSchema(responder, SchemaId.of(context, id));
+  }
+
+  /**
+   * Deletes the entire schema from the registry.
+   *
+   * Everything related to the schema id is deleted completely.
+   * All versions of schema are also deleted.
+   *
+   * @param responder the HTTP response handler
+   * @param id the id of the schema to delete
+   */
+  private void deleteSchema(HttpServiceResponder responder, SchemaId id) {
     try {
       if (registry.hasSchema(id)) {
         notFound(responder, "Id " + id + " not found.");
@@ -191,18 +225,29 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
     }
   }
 
-  /**
-   * Deletes a version of schema from the registry for a given schema id.
-   *
-   * @param request HTTP request handler.
-   * @param responder HTTP response handler.
-   * @param id of the schema
-   * @param version version of the schema.
-   */
   @DELETE
   @Path("schemas/{id}/versions/{version}")
   public void delete(HttpServiceRequest request, HttpServiceResponder responder,
                      @PathParam("id") String id, @PathParam("version") long version) {
+    deleteEntry(responder, SchemaId.of(getContext().getNamespace(), id), version);
+  }
+
+  @DELETE
+  @Path("contexts/{context}/schemas/{id}/versions/{version}")
+  public void delete(HttpServiceRequest request, HttpServiceResponder responder,
+                     @PathParam("context") String context, @PathParam("id") String id,
+                     @PathParam("version") long version) {
+    deleteEntry(responder, SchemaId.of(context, id), version);
+  }
+
+  /**
+   * Deletes a schema entry from the registry.
+   *
+   * @param responder the HTTP response handler
+   * @param id the schema id
+   * @param version the schema entry version
+   */
+  private void deleteEntry(HttpServiceResponder responder, SchemaId id, long version) {
     try {
       registry.remove(id, version);
       success(responder, "Successfully deleted version '" + version + "' of schema " + id);
@@ -213,18 +258,30 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
     }
   }
 
-  /**
-   * Returns information of schema, including schema requested along with versions available and other metadata.
-   *
-   * @param request HTTP request handler.
-   * @param responder HTTP response handler.
-   * @param id of the schema.
-   * @param version of the schema.
-   */
   @GET
   @Path("schemas/{id}/versions/{version}")
   public void get(HttpServiceRequest request, HttpServiceResponder responder,
                   @PathParam("id") String id, @PathParam("version") long version) {
+    getEntry(responder, SchemaId.of(getContext().getNamespace(), id), version);
+  }
+
+  @GET
+  @Path("contexts/{context}/schemas/{id}/versions/{version}")
+  public void get(HttpServiceRequest request, HttpServiceResponder responder,
+                  @PathParam("context") String context, @PathParam("id") String id,
+                  @PathParam("version") long version) {
+    getEntry(responder, SchemaId.of(context, id), version);
+  }
+
+  /**
+   * Returns information about the schema entry,
+   * including schema requested along with versions available and other metadata.
+   *
+   * @param responder the HTTP response handler
+   * @param id the schema id
+   * @param version the schema entry version
+   */
+  private void getEntry(HttpServiceResponder responder, SchemaId id, long version) {
     try {
       SchemaEntry entry = registry.getEntry(id, version);
       ServiceResponse<SchemaEntry> response = new ServiceResponse<>(entry);
@@ -236,18 +293,28 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
     }
   }
 
-  /**
-   * Returns information of schema, including schema requested along with versions available and other metadata.
-   * This call will automatically detect the currect active version of schema.
-   *
-   * @param request HTTP request handler.
-   * @param responder HTTP response handler.
-   * @param id of the schema.
-   */
   @GET
   @Path("schemas/{id}")
   public void get(HttpServiceRequest request, HttpServiceResponder responder,
                   @PathParam("id") String id) {
+    get(responder, SchemaId.of(getContext().getNamespace(), id));
+  }
+
+  @GET
+  @Path("contexts/{context}/schemas/{id}")
+  public void get(HttpServiceRequest request, HttpServiceResponder responder,
+                  @PathParam("context") String context, @PathParam("id") String id) {
+    get(responder, SchemaId.of(context, id));
+  }
+
+  /**
+   * Returns information about the schema, including schema requested along with versions available and other metadata.
+   * This call will automatically detect the currect active version of schema.
+   *
+   * @param responder the HTTP response handler
+   * @param id the schema id
+   */
+  private void get(HttpServiceResponder responder, SchemaId id) {
     try {
       SchemaEntry entry = registry.getEntry(id);
       ServiceResponse<SchemaEntry> response = new ServiceResponse<>(entry);
@@ -259,16 +326,27 @@ public class SchemaRegistryHandler extends AbstractHttpServiceHandler {
     }
   }
 
-  /**
-   * Returns list of versions for a give schema id.
-   *
-   * @param request HTTP request handler.
-   * @param responder HTTP response handler.
-   * @param id of the schema.
-   */
   @GET
   @Path("schemas/{id}/versions")
   public void versions(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("id") String id) {
+    listVersions(responder, SchemaId.of(getContext().getNamespace(), id));
+  }
+
+  @GET
+  @Path("contexts/{context}/schemas/{id}/versions")
+  public void versions(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String context, @PathParam("id") String id) {
+    listVersions(responder, SchemaId.of(context, id));
+  }
+
+  /**
+   * Returns list of versions for a given schema id.
+   *
+   * @param responder the HTTP response handler
+   * @param id the schema id
+   */
+  private void listVersions(HttpServiceResponder responder, SchemaId id) {
+
     try {
       Set<Long> versions = registry.getVersions(id);
       ServiceResponse<Long> response = new ServiceResponse<>(versions);

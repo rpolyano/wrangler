@@ -70,7 +70,7 @@ public final class TestingRig {
     );
 
     String migrate = new MigrateToV2(recipe).migrate();
-    RecipeParser parser = new GrammarBasedParser(migrate, registry);
+    RecipeParser parser = new GrammarBasedParser("system", migrate, registry);
     parser.initialize(null);
     RecipePipeline pipeline = new RecipePipelineExecutor();
     pipeline.initialize(parser, context);
@@ -96,7 +96,7 @@ public final class TestingRig {
     );
 
     String migrate = new MigrateToV2(recipe).migrate();
-    RecipeParser parser = new GrammarBasedParser(migrate, registry);
+    RecipeParser parser = new GrammarBasedParser("system", migrate, registry);
     parser.initialize(null);
     RecipePipeline pipeline = new RecipePipelineExecutor();
     pipeline.initialize(parser, context);
@@ -112,7 +112,7 @@ public final class TestingRig {
     );
 
     String migrate = new MigrateToV2(recipe).migrate();
-    RecipeParser parser = new GrammarBasedParser(migrate, registry);
+    RecipeParser parser = new GrammarBasedParser("system", migrate, registry);
     parser.initialize(new NoOpDirectiveContext());
     RecipePipeline pipeline = new RecipePipelineExecutor();
     pipeline.initialize(parser, new TestingPipelineContext());
@@ -125,7 +125,7 @@ public final class TestingRig {
     );
 
     String migrate = new MigrateToV2(recipe).migrate();
-    RecipeParser parser = new GrammarBasedParser(migrate, registry);
+    RecipeParser parser = new GrammarBasedParser("system", migrate, registry);
     parser.initialize(null);
     return parser;
   }

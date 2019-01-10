@@ -19,12 +19,11 @@ package co.cask.wrangler.proto.schema;
 /**
  * A schema ID and entry version.
  */
-public class SchemaEntryVersion {
-  private final String id;
+public class SchemaEntryVersion extends SchemaId {
   private final long version;
 
-  public SchemaEntryVersion(String id, long version) {
-    this.id = id;
+  public SchemaEntryVersion(SchemaId id, long version) {
+    super(id);
     this.version = version;
   }
 }

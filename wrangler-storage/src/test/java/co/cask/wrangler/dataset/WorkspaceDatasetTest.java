@@ -26,6 +26,7 @@ import co.cask.wrangler.dataset.workspace.Workspace;
 import co.cask.wrangler.dataset.workspace.WorkspaceDataset;
 import co.cask.wrangler.dataset.workspace.WorkspaceMeta;
 import co.cask.wrangler.dataset.workspace.WorkspaceNotFoundException;
+import co.cask.wrangler.proto.NamespacedId;
 import co.cask.wrangler.proto.Recipe;
 import co.cask.wrangler.proto.Request;
 import co.cask.wrangler.proto.RequestV1;
@@ -55,21 +56,21 @@ public class WorkspaceDatasetTest extends TestBase {
     WorkspaceDataset workspaceDataset = new WorkspaceDataset(table);
 
     try {
-      workspaceDataset.updateWorkspaceData("id", DataType.TEXT, new byte[] { 0 });
+      workspaceDataset.updateWorkspaceData(NamespacedId.of("c0", "id"), DataType.TEXT, new byte[] { 0 });
       Assert.fail("Updating a non-existing workspace should fail.");
     } catch (WorkspaceNotFoundException e) {
       // expected
     }
 
     try {
-      workspaceDataset.updateWorkspaceProperties("id", Collections.emptyMap());
+      workspaceDataset.updateWorkspaceProperties(NamespacedId.of("c0", "id"), Collections.emptyMap());
       Assert.fail("Updating a non-existing workspace should fail.");
     } catch (WorkspaceNotFoundException e) {
       // expected
     }
 
     try {
-      workspaceDataset.updateWorkspaceRequest("id", null);
+      workspaceDataset.updateWorkspaceRequest(NamespacedId.of("c0", "id"), null);
       Assert.fail("Updating a non-existing workspace should fail.");
     } catch (WorkspaceNotFoundException e) {
       // expected
@@ -86,12 +87,14 @@ public class WorkspaceDatasetTest extends TestBase {
     WorkspaceIdentifier id1 = new WorkspaceIdentifier("id1", "name1");
     WorkspaceIdentifier id2 = new WorkspaceIdentifier("id2", "name2");
 
+    String context = "c0";
+
     String scope1 = "scope1";
     String scope2 = "scope2";
-    WorkspaceMeta meta1 = WorkspaceMeta.builder(id1.getId(), id1.getName())
+    WorkspaceMeta meta1 = WorkspaceMeta.builder(NamespacedId.of(context, id1.getId()), id1.getName())
       .setScope(scope1)
       .build();
-    WorkspaceMeta meta2 = WorkspaceMeta.builder(id2.getId(), id2.getName())
+    WorkspaceMeta meta2 = WorkspaceMeta.builder(NamespacedId.of(context, id2.getId()), id2.getName())
       .setScope(scope2)
       .build();
 
@@ -99,19 +102,19 @@ public class WorkspaceDatasetTest extends TestBase {
     workspaceDataset.writeWorkspaceMeta(meta2);
     tableManager.flush();
 
-    Assert.assertEquals(Collections.singletonList(id1), workspaceDataset.listWorkspaces(scope1));
-    Assert.assertEquals(Collections.singletonList(id2), workspaceDataset.listWorkspaces(scope2));
+    Assert.assertEquals(Collections.singletonList(id1), workspaceDataset.listWorkspaces(context, scope1));
+    Assert.assertEquals(Collections.singletonList(id2), workspaceDataset.listWorkspaces(context, scope2));
 
-    workspaceDataset.deleteScope(scope1);
+    workspaceDataset.deleteScope(context, scope1);
     tableManager.flush();
 
-    Assert.assertTrue(workspaceDataset.listWorkspaces(scope1).isEmpty());
-    Assert.assertEquals(Collections.singletonList(id2), workspaceDataset.listWorkspaces(scope2));
+    Assert.assertTrue(workspaceDataset.listWorkspaces(context, scope1).isEmpty());
+    Assert.assertEquals(Collections.singletonList(id2), workspaceDataset.listWorkspaces(context, scope2));
 
-    workspaceDataset.deleteWorkspace(id2.getId());
+    workspaceDataset.deleteWorkspace(NamespacedId.of(context, id2.getId()));
     tableManager.flush();
-    Assert.assertTrue(workspaceDataset.listWorkspaces(scope1).isEmpty());
-    Assert.assertTrue(workspaceDataset.listWorkspaces(scope2).isEmpty());
+    Assert.assertTrue(workspaceDataset.listWorkspaces(context, scope1).isEmpty());
+    Assert.assertTrue(workspaceDataset.listWorkspaces(context, scope2).isEmpty());
   }
 
   @Test
@@ -121,13 +124,13 @@ public class WorkspaceDatasetTest extends TestBase {
     Table table = tableManager.get();
     WorkspaceDataset workspaceDataset = new WorkspaceDataset(table);
 
-    String id = "id0";
-    Assert.assertTrue(workspaceDataset.listWorkspaces("default").isEmpty());
+    NamespacedId id = NamespacedId.of("c0", "id0");
+    Assert.assertTrue(workspaceDataset.listWorkspaces(id.getNamespace(), "default").isEmpty());
     Assert.assertFalse(workspaceDataset.hasWorkspace(id));
-    WorkspaceIdentifier workspaceIdentifier = new WorkspaceIdentifier(id, "name");
+    WorkspaceIdentifier workspaceId = new WorkspaceIdentifier(id.getId(), "name");
 
     // test write and get
-    WorkspaceMeta meta = WorkspaceMeta.builder(workspaceIdentifier.getId(), workspaceIdentifier.getName())
+    WorkspaceMeta meta = WorkspaceMeta.builder(id, workspaceId.getName())
       .setScope("default")
       .setType(DataType.BINARY)
       .setProperties(Collections.singletonMap("k1", "v1"))
@@ -136,7 +139,7 @@ public class WorkspaceDatasetTest extends TestBase {
     tableManager.flush();
 
     Workspace actual = workspaceDataset.getWorkspace(id);
-    Workspace expected = Workspace.builder(meta.getId(), meta.getName())
+    Workspace expected = Workspace.builder(id, meta.getName())
       .setCreated(actual.getCreated())
       .setUpdated(actual.getUpdated())
       .setType(meta.getType())
@@ -144,7 +147,8 @@ public class WorkspaceDatasetTest extends TestBase {
       .setProperties(meta.getProperties())
       .build();
     Assert.assertEquals(expected, actual);
-    Assert.assertEquals(Collections.singletonList(workspaceIdentifier), workspaceDataset.listWorkspaces("default"));
+    Assert.assertEquals(Collections.singletonList(workspaceId),
+                        workspaceDataset.listWorkspaces(id.getNamespace(), "default"));
 
     // test updating properties
     Map<String, String> properties = Collections.singletonMap("k2", "v2");
@@ -184,7 +188,7 @@ public class WorkspaceDatasetTest extends TestBase {
     Assert.assertEquals(expected, actual);
 
     // test updating meta
-    meta = WorkspaceMeta.builder(meta.getId(), meta.getName())
+    meta = WorkspaceMeta.builder(id, meta.getName())
       .setType(DataType.TEXT)
       .setProperties(Collections.singletonMap("k3", "v3"))
       .build();
@@ -197,12 +201,13 @@ public class WorkspaceDatasetTest extends TestBase {
       .setType(meta.getType())
       .build();
     Assert.assertEquals(expected, actual);
-    Assert.assertEquals(Collections.singletonList(workspaceIdentifier), workspaceDataset.listWorkspaces("default"));
+    Assert.assertEquals(Collections.singletonList(workspaceId),
+                        workspaceDataset.listWorkspaces(id.getNamespace(), "default"));
 
     // delete workspace
     workspaceDataset.deleteWorkspace(id);
     tableManager.flush();
-    Assert.assertTrue(workspaceDataset.listWorkspaces("default").isEmpty());
+    Assert.assertTrue(workspaceDataset.listWorkspaces(id.getNamespace(), "default").isEmpty());
     try {
       workspaceDataset.getWorkspace(id);
       Assert.fail("Workspace was not deleted.");

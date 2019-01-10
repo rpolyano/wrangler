@@ -78,12 +78,12 @@ public class CompositeDirectiveRegistryTest {
 
     @Nullable
     @Override
-    public DirectiveInfo get(String name) {
+    public DirectiveInfo get(String namespace, String name) {
       return registry.get(name);
     }
 
     @Override
-    public void reload() {
+    public void reload(String namespace) {
       // no-op
     }
 
@@ -112,7 +112,7 @@ public class CompositeDirectiveRegistryTest {
     }
     Assert.assertEquals(76, count);
 
-    registry.reload();
+    registry.reload("");
 
     iterator = registry.iterator();
     count = 0;
